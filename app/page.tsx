@@ -31,7 +31,12 @@ import {
   Container,
   Stack,
   Avatar,
-  Badge
+  Badge,
+  ToggleButton,
+  ToggleButtonGroup,
+  ThemeProvider,
+  createTheme,
+  CssBaseline
 } from '@mui/material';
 import { 
   SelectChangeEvent 
@@ -66,8 +71,13 @@ import {
   Business as BusinessIcon,
   HealthAndSafety,
   Favorite,
-  FavoriteBorder
+  FavoriteBorder,
+  Error as ErrorIcon
 } from '@mui/icons-material';
+import { getUserPersona, DTILevel, KnowledgeLevel, Behaviour, Reaction } from '../utils/persona';
+import '@fontsource/inter/400.css';
+import '@fontsource/inter/600.css';
+import '@fontsource/inter/700.css';
 
 // Types for each step
 interface IncomeData {
@@ -136,16 +146,17 @@ function PieChart({ data }: { data: { label: string; value: number; color: strin
   const radius = 48;
   const cx = 60, cy = 60;
   const [hovered, setHovered] = useState<number | null>(null);
-  const [tooltip, setTooltip] = useState<{ x: number; y: number; label: string; percent: string } | null>(null);
+  const [tooltip, setTooltip] = useState<{ x: number; y: number; label: string; percent: string; value: string } | null>(null);
 
-  const handleMouseMove = (e: React.MouseEvent, i: number, percent: string, label: string) => {
+  const handleMouseMove = (e: React.MouseEvent, i: number, percent: string, label: string, value: string) => {
     const rect = (e.target as SVGElement).ownerSVGElement?.getBoundingClientRect();
     if (rect) {
       setTooltip({
         x: e.clientX - rect.left,
         y: e.clientY - rect.top,
         label,
-        percent
+        percent,
+        value
       });
     }
     setHovered(i);
@@ -169,6 +180,7 @@ function PieChart({ data }: { data: { label: string; value: number; color: strin
           const pathData = `M${cx},${cy} L${x1},${y1} A${radius},${radius} 0 ${largeArc} 1 ${x2},${y2} Z`;
           const percent = total > 0 ? ((slice.value / total) * 100).toFixed(1) + '%' : '0%';
           const isHovered = hovered === i;
+          const value = `₹${slice.value.toLocaleString()}`;
           cumulative += slice.value;
           return (
             <path
@@ -178,7 +190,7 @@ function PieChart({ data }: { data: { label: string; value: number; color: strin
               stroke="#fff"
               strokeWidth={isHovered ? 3 : 1}
               style={{ cursor: 'pointer', opacity: isHovered ? 0.85 : 1 }}
-              onMouseMove={e => handleMouseMove(e, i, percent, slice.label)}
+              onMouseMove={e => handleMouseMove(e, i, percent, slice.label, value)}
               onMouseLeave={handleMouseLeave}
             />
           );
@@ -192,7 +204,7 @@ function PieChart({ data }: { data: { label: string; value: number; color: strin
             top: tooltip.y - 10,
             background: '#222',
             color: '#fff',
-            padding: '4px 10px',
+            padding: '4px 12px',
             borderRadius: 6,
             fontSize: 13,
             pointerEvents: 'none',
@@ -200,7 +212,7 @@ function PieChart({ data }: { data: { label: string; value: number; color: strin
             zIndex: 10
           }}
         >
-          {tooltip.label}: {tooltip.percent}
+          {tooltip.label}: {tooltip.percent} <br />{tooltip.value}
         </div>
       )}
     </div>
@@ -214,6 +226,21 @@ function calculateCorpus({ monthlyInvestment, years, rate }: { monthlyInvestment
   // FV = P × [((1 + r)^n - 1) / r] × (1 + r)
   return monthlyInvestment * (((Math.pow(1 + r, n) - 1) / r) * (1 + r));
 }
+
+// Create a custom theme with Inter as the default font for body text
+const theme = createTheme({
+  typography: {
+    fontFamily: 'Inter, Arial, sans-serif',
+    h1: { fontWeight: 800 },
+    h2: { fontWeight: 700 },
+    h3: { fontWeight: 700 },
+    h4: { fontWeight: 700 },
+    h5: { fontWeight: 700 },
+    h6: { fontWeight: 700 },
+    body1: { fontWeight: 400 },
+    body2: { fontWeight: 400 },
+  },
+});
 
 export default function Home() {
   const [step, setStep] = useState<Step>(0);
@@ -268,11 +295,7 @@ export default function Home() {
 
   // Add missing state variables for RiskQuiz component
   const [demographics, setDemographics] = useState({
-    ageGroup: '',
-    employment: '',
-    dependents: ['None'],
-    majorExpenses: [],
-    insurance: ['None']
+    ageGroup: ''
   });
   const [debt, setDebt] = useState({
     hasDebt: '',
@@ -285,27 +308,224 @@ export default function Home() {
   const [savingsRate, setSavingsRate] = useState('');
   const [error, setError] = useState('');
 
-  // Add knowledgeQuestions object
-  const knowledgeQuestions: Record<string, string[]> = {
-    'Low': [
-      'Do you understand what mutual funds are?',
-      'Have you ever invested in stocks?',
-      'Do you know what SIP means?',
-      'Are you familiar with different types of investment risks?'
-    ],
-    'Medium': [
-      'Do you understand the difference between equity and debt funds?',
-      'Have you invested in mutual funds before?',
-      'Do you know about asset allocation?',
-      'Are you familiar with market volatility?'
-    ],
-    'High': [
-      'Do you actively manage your investment portfolio?',
-      'Are you familiar with advanced investment strategies?',
-      'Do you understand derivatives and complex financial instruments?',
-      'Have you invested in international markets?'
-    ]
-  };
+  // Replace knowledgeQuestions and quiz structure with the new, rephrased set
+  const demographicsQuestions = [
+    {
+      key: 'ageGroup',
+      label: 'Age Group',
+      type: 'radio',
+      options: [
+        '18–25 years (Early Career)',
+        '26–35 years (Emerging Accumulator)',
+        '36–50 years (Established Professional)',
+        '51–65 years (Pre-Retirement)',
+        'Over 65 years (Retiree or Late Stage)'
+      ]
+    }
+  ];
+
+  const debtQuestions = [
+    {
+      key: 'hasDebt',
+      label: 'Do you currently have any outstanding debt or loans?',
+      type: 'radio',
+      options: ['No', 'Yes']
+    }
+    // If Yes, show loan details as before
+  ];
+
+  const knowledgeLevels = [
+    'Minimal (Just starting, little experience)',
+    'Moderate (Comfortable with basics, some experience)',
+    'Advanced (Deep understanding; manage portfolio aggressively)'
+  ];
+
+  const minimalQuestions = [
+    'Do you understand what mutual funds are?',
+    'Have you ever invested in stocks or equity-related products?',
+    'Do you know what SIP (Systematic Investment Plan) means?',
+    'Are you aware of risks like market volatility, liquidity, and inflation?'
+  ];
+
+  const moderateQuestions = [
+    {
+      label: 'How do you typically select your investments?',
+      type: 'radio',
+      options: [
+        'I rely on recommendations from friends/family.',
+        'I follow advice from online research or financial news.',
+        'I consult with a financial advisor.',
+        'I use robo-advisors or online investment platforms.',
+        'I make decisions independently, using my own research.'
+      ]
+    },
+    {
+      label: 'How often do you review your investment portfolio?',
+      type: 'radio',
+      options: [
+        'Rarely or only when prompted.',
+        'Once or twice a year.',
+        'Quarterly.',
+        'Monthly.',
+        'Weekly or more often.'
+      ]
+    },
+    {
+      label: 'How comfortable are you with asset allocation and diversification principles?',
+      type: 'radio',
+      options: [
+        'Not comfortable, I prefer to keep things simple.',
+        'Somewhat comfortable, but I prefer expert advice.',
+        'Comfortable, I apply these principles on my own.',
+        'Very comfortable, I actively review and adjust allocation.'
+      ]
+    },
+    {
+      label: 'Which types of investments have you used?',
+      type: 'checkbox',
+      options: [
+        'Bank deposits, FDs, RDs',
+        'Mutual funds (equity, debt, hybrid)',
+        'Direct stocks/equities',
+        'Bonds',
+        'Gold / Precious metals',
+        'Real estate',
+        'Alternative investments (REITs, crypto, P2P lending, etc.)'
+      ]
+    },
+    {
+      label: 'When markets are volatile, how do you typically react?',
+      type: 'radio',
+      options: [
+        'I get worried and consider selling my investments.',
+        'I wait and watch before making any decisions.',
+        'I usually hold my current investments.',
+        'I look for buying opportunities.'
+      ]
+    }
+  ];
+
+  const advancedQuestions = [
+    {
+      label: 'How do you manage your investment portfolio?',
+      type: 'radio',
+      options: [
+        'Entirely by myself (DIY approach).',
+        'With occasional help from professionals/consultants.',
+        'With regular input from a financial advisor or wealth manager.',
+        'Through automated/algorithmic platforms (e.g., robo-advisors).'
+      ]
+    },
+    {
+      label: 'Which advanced instruments have you invested in?',
+      type: 'checkbox',
+      options: [
+        'Derivatives (options, futures, swaps)',
+        'International equities, bonds, or funds',
+        'PMS/AIFs (portfolio management/alternative investment funds)',
+        'Startups (angel or VC investments)',
+        'Real estate investment trusts (REITs, INVITs)',
+        'Cryptocurrencies or digital assets',
+        'Structured products'
+      ]
+    },
+    {
+      label: 'How frequently do you rebalance your portfolio?',
+      type: 'radio',
+      options: [
+        'Rarely or never.',
+        'Only when my advisor suggests.',
+        'Once a year.',
+        'Every 6 months.',
+        'Quarterly or more frequently.'
+      ]
+    },
+    {
+      label: 'What is your primary consideration while making investment decisions?',
+      type: 'radio',
+      options: [
+        'Maximizing returns, even with higher risk.',
+        'Managing risk and return equally.',
+        'Tax efficiency and long-term compounding.',
+        'Diversification across asset classes and geographies.',
+        'Sustainable/ESG investments.'
+      ]
+    },
+    {
+      label: 'How do you monitor investment performance?',
+      type: 'radio',
+      options: [
+        'Regular reports/statements from platforms or advisors.',
+        'Custom dashboards or spreadsheets.',
+        'Real-time tracking using mobile or desktop apps.',
+        'I rely on annual/semi-annual reviews only.'
+      ]
+    }
+  ];
+
+  const goalsQuestions = [
+    {
+      key: 'primaryObjective',
+      label: 'What is your primary financial objective?',
+      type: 'radio',
+      options: [
+        'Preserve Current Wealth (Stability, capital protection)',
+        'Grow Wealth (Aggressive appreciation)',
+        'Generate Income (Regular cashflow/dividends)',
+        'Retirement Planning',
+        'Funding Child\'s Education',
+        'Major Purchase (Home/Auto)',
+        'Other'
+      ],
+      other: true
+    },
+    {
+      key: 'timeHorizon',
+      label: 'What is your planned investment time horizon for major goals?',
+      type: 'radio',
+      options: [
+        'Less than 1 year (Short Term)',
+        '1–3 years (Short-Medium Term)',
+        '3–5 years (Medium Term)',
+        'More than 5 years (Long Term/Retirement)'
+      ]
+    },
+    {
+      key: 'savingsRate',
+      label: 'What portion of your monthly income do you consistently save or invest?',
+      type: 'radio',
+      options: [
+        'Less than 10%',
+        '10%–20%',
+        '20%–40%',
+        'Over 40%',
+        'It varies each month'
+      ]
+    },
+    {
+      key: 'marketDownturn',
+      label: 'Suppose your investment dropped by 20% in a market downturn. What would you most likely do?',
+      type: 'radio',
+      options: [
+        'Sell all investments to avoid further losses',
+        'Sell a portion, wait for stabilization',
+        'Do nothing, wait for recovery',
+        'Invest more while prices are lower',
+        'Unsure'
+      ]
+    },
+    {
+      key: 'investmentAttitude',
+      label: 'Which statement best describes your investment attitude?',
+      type: 'radio',
+      options: [
+        'I avoid risk and prefer guaranteed returns',
+        'I can accept modest risk for slightly higher returns',
+        'I am comfortable with significant risk for potentially higher returns',
+        'My risk preference changes based on market/news'
+      ]
+    }
+  ];
 
   const steps = ['Income', 'Debt/Liabilities', 'Investments', 'Expenses', 'Recurring Investments'];
 
@@ -519,7 +739,8 @@ export default function Home() {
   const totalEMI = Object.entries(loanEMIs).reduce((sum, [idx, emi]) => emiAdded[Number(idx)] ? sum + (emi || 0) : sum, 0);
 
   return (
-    <ClientOnly>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
       <Box sx={{ minHeight: '100vh', background: 'var(--background-light)' }}>
       {/* Modern Header */}
       <Paper 
@@ -1242,7 +1463,7 @@ export default function Home() {
         )}
       </Container>
     </Box>
-    </ClientOnly>
+    </ThemeProvider>
   );
 }
 
@@ -1267,22 +1488,111 @@ function Dashboard({ data, totalEMI, onBack, onRecommend, recommendation, loadin
   const totalMonthlyExpenses = Number(data.expenses.monthlyExpenses) + totalEMI;
   const monthlySavings = totalIncome - totalMonthlyExpenses;
   const savingsRate = totalIncome > 0 ? (monthlySavings / totalIncome) * 100 : 0;
+  // Calculate total debt
+  const totalDebt = (data.debt?.loans || []).reduce((sum, loan) => sum + (parseFloat(loan.principal) || 0), 0);
+  // Calculate true net worth: total investments + (monthly savings * 12) - total debt
+  const trueNetWorth = totalInvestments + (monthlySavings * 12) - totalDebt;
+
+  // Calculate recurring EMIs for each loan
+  const emiDetails = (data.debt?.loans || []).map(loan => {
+    const p = parseFloat(loan.principal) || 0;
+    const rate = parseFloat(loan.interest) || 0;
+    const tenureValue = parseInt(loan.tenureValue) || 0;
+    const tenureType = loan.tenureType || 'months';
+    const totalTenureMonths = tenureType === 'years' ? tenureValue * 12 : tenureValue;
+    let emi = 0;
+    if (p > 0 && rate > 0 && totalTenureMonths > 0) {
+      const r = rate / 12 / 100;
+      emi = r === 0 ? p / totalTenureMonths : p * r * Math.pow(1 + r, totalTenureMonths) / (Math.pow(1 + r, totalTenureMonths) - 1);
+    }
+    return {
+      ...loan,
+      emi: Math.round(emi)
+    };
+  });
+
+  // Group investments for pie chart
+  const pieGroups = [
+    { label: 'Gold', value: Number(data.investments.gold) || 0, color: '#FFD700' },
+    { label: 'Real Estate', value: Number(data.investments.realEstate) || 0, color: '#8B5C2A' },
+    { label: 'Mutual Funds', value: data.investments.mutualFunds.reduce((sum, mf) => sum + mf.amount, 0), color: '#4F8EF7' },
+    { label: 'Fixed Deposits', value: Number(data.investments.fd) || 0, color: '#43B97F' },
+    { label: 'Other', value: Number(data.investments.other) || 0 + Number(data.investments.rsu) || 0 + Number(data.investments.esops) || 0, color: '#A259FF' }
+  ].filter(g => g.value > 0);
+
+  // Calculate DTI (Debt-to-Income Ratio)
+  const annualIncome = totalIncome * 12;
+  const dtiRatio = annualIncome > 0 ? (totalDebt / annualIncome) : 0;
+  let dti: DTILevel = '<36%';
+  if (dtiRatio < 0.36) dti = '<36%';
+  else if (dtiRatio < 0.43) dti = '36–43%';
+  else if (dtiRatio < 0.5) dti = '43–50%';
+  else dti = '≥50%';
+
+  // Extract knowledge, behaviour, reaction from answers (example mapping, adjust as needed)
+  // For demo, fallback to Moderate if not available
+  let knowledge: KnowledgeLevel = 'Moderate';
+  let behaviour: Behaviour = 'Moderate';
+  let reaction: Reaction = 'Hold';
+  if (data.risk && data.risk.knowledge) {
+    if (data.risk.knowledge.toLowerCase().includes('minimal') || data.risk.knowledge.toLowerCase().includes('low')) knowledge = 'Minimal';
+    else if (data.risk.knowledge.toLowerCase().includes('advanced') || data.risk.knowledge.toLowerCase().includes('high')) knowledge = 'Advanced';
+    else knowledge = 'Moderate';
+  }
+  // For behaviour and reaction, you may want to map from quiz answers (customize as needed)
+  // For now, use risk appetite for behaviour
+  if (data.risk && data.risk.appetite) {
+    if (data.risk.appetite.toLowerCase().includes('conservative') || data.risk.appetite.toLowerCase().includes('cautious')) behaviour = 'Cautious';
+    else if (data.risk.appetite.toLowerCase().includes('aggressive')) behaviour = 'Aggressive';
+    else behaviour = 'Moderate';
+  }
+  // For reaction, you may want to use a market downturn question from the quiz
+  // For now, fallback to 'Hold'
+
+  // Try to extract ageGroup from risk quiz answers or fallback to ''
+  let ageGroup = '';
+  // Try to extract from recommendation, risk, or fallback
+  if (recommendation && (recommendation as any).ageGroup) {
+    ageGroup = (recommendation as any).ageGroup;
+  } else if (data.risk && (data.risk as any).ageGroup) {
+    ageGroup = (data.risk as any).ageGroup;
+  }
+  const persona = getUserPersona({
+    ageGroup,
+    dti,
+    knowledge,
+    behaviour,
+    reaction
+  });
+
+  // Risk Assessment Flow Section
+  const [riskAssessmentDone, setRiskAssessmentDone] = useState(false);
+  const [goalsFlowActive, setGoalsFlowActive] = useState(false);
+
+  const startRiskAssessment = () => {
+    setRiskAssessmentDone(false);
+    setGoalsFlowActive(false);
+  };
+
+  const startGoalsFlow = () => {
+    setGoalsFlowActive(true);
+  };
 
   return (
-    <Box sx={{ maxWidth: 1200, mx: 'auto', p: 3 }}>
-        {/* Header */}
-        <Paper elevation={0} sx={{ p: 4, mb: 4, borderRadius: 3, background: 'linear-gradient(135deg, var(--primary), var(--primary-light))', color: 'white' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.2)', width: 56, height: 56 }}>
-              <TrendingUp />
+    <Box sx={{ maxWidth: 1200, mx: 'auto', p: { xs: 1, sm: 3 } }}>
+      {/* Modern Header */}
+      <Paper elevation={3} sx={{ p: { xs: 2, sm: 4 }, mb: 4, borderRadius: 4, background: 'linear-gradient(135deg, #e0e0e0 0%, #bdbdbd 100%)', color: '#222', boxShadow: 'var(--shadow-medium)' }}>
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, justifyContent: 'space-between', mb: 2, gap: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+            <Avatar sx={{ bgcolor: '#757575', width: 64, height: 64, boxShadow: 2 }}>
+              <TrendingUp fontSize="large" />
             </Avatar>
             <Box>
-              <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5 }}>
-                Financial Dashboard
+              <Typography variant="h4" sx={{ fontWeight: 800, mb: 0.5, letterSpacing: '-1px', fontSize: { xs: '1.5rem', sm: '2.2rem' }, color: '#222' }}>
+                Your Dashboard
               </Typography>
-              <Typography variant="body1" sx={{ opacity: 0.9 }}>
-                Your comprehensive financial overview
+              <Typography variant="body1" sx={{ opacity: 0.92, fontSize: { xs: '1rem', sm: '1.15rem' } }}>
+                Your personalized financial overview and insights
               </Typography>
             </Box>
           </Box>
@@ -1291,85 +1601,115 @@ function Dashboard({ data, totalEMI, onBack, onRecommend, recommendation, loadin
             startIcon={<ArrowBack />}
             onClick={onBack}
             sx={{ 
-              color: 'white', 
-              borderColor: 'rgba(255,255,255,0.3)',
-              '&:hover': { borderColor: 'white', bgcolor: 'rgba(255,255,255,0.1)' }
+              color: '#333', 
+              borderColor: '#bdbdbd',
+              fontWeight: 600,
+              fontSize: { xs: '0.95rem', sm: '1.1rem' },
+              borderRadius: 2,
+              px: 3,
+              py: 1.2,
+              bgcolor: '#f5f5f5',
+              '&:hover': { borderColor: '#757575', bgcolor: '#e0e0e0' }
             }}
           >
             Back to Form
           </Button>
         </Box>
+        <Divider sx={{ borderColor: '#bdbdbd', my: 2 }} />
+        <Typography variant="body2" sx={{ opacity: 0.85, fontSize: { xs: '0.98rem', sm: '1.08rem' }, fontWeight: 400, color: '#444' }}>
+          Welcome! Here's a snapshot of your financial health, investments, and opportunities. Use the insights below to make informed decisions and track your progress.
+        </Typography>
       </Paper>
 
       {/* Key Metrics */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(auto-fit, minmax(250px, 1fr))' }, gap: 3, mb: 4 }}>
-        <Card elevation={0} sx={{ p: 3, borderRadius: 3, border: '1px solid var(--border-light)' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-            <Avatar sx={{ bgcolor: 'var(--success)', width: 40, height: 40 }}>
-              <AttachMoney />
-            </Avatar>
-            <Typography variant="h6" sx={{ fontWeight: 600 }}>
-              Monthly Income
-            </Typography>
-          </Box>
-          <Typography variant="h4" sx={{ fontWeight: 700, color: 'var(--success)', mb: 1 }}>
-            ₹{totalIncome.toLocaleString()}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Primary: ₹{Number(data.income.inhandIncome).toLocaleString()} | Other: ₹{Number(data.income.otherIncome).toLocaleString()}
-          </Typography>
-        </Card>
-
-        <Card elevation={0} sx={{ p: 3, borderRadius: 3, border: '1px solid var(--border-light)' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-            <Avatar sx={{ bgcolor: 'var(--warning)', width: 40, height: 40 }}>
-              <Assessment />
-            </Avatar>
-            <Typography variant="h6" sx={{ fontWeight: 600 }}>
-              Monthly Expenses
-            </Typography>
-          </Box>
-          <Typography variant="h4" sx={{ fontWeight: 700, color: 'var(--warning)', mb: 1 }}>
-            ₹{totalMonthlyExpenses.toLocaleString()}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Base: ₹{Number(data.expenses.monthlyExpenses).toLocaleString()} | EMI: ₹{totalEMI.toLocaleString()}
-          </Typography>
-        </Card>
-
-        <Card elevation={0} sx={{ p: 3, borderRadius: 3, border: '1px solid var(--border-light)' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-            <Avatar sx={{ bgcolor: 'var(--primary)', width: 40, height: 40 }}>
-              <TrendingUp />
-            </Avatar>
-            <Typography variant="h6" sx={{ fontWeight: 600 }}>
-              Monthly Savings
-            </Typography>
-          </Box>
-          <Typography variant="h4" sx={{ fontWeight: 700, color: 'var(--primary)', mb: 1 }}>
-            ₹{monthlySavings.toLocaleString()}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Savings Rate: {savingsRate.toFixed(1)}%
-          </Typography>
-        </Card>
-
-        <Card elevation={0} sx={{ p: 3, borderRadius: 3, border: '1px solid var(--border-light)' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-            <Avatar sx={{ bgcolor: 'var(--secondary)', width: 40, height: 40 }}>
-              <AccountBalance />
-            </Avatar>
-            <Typography variant="h6" sx={{ fontWeight: 600 }}>
-              Total Investments
-            </Typography>
-          </Box>
-          <Typography variant="h4" sx={{ fontWeight: 700, color: 'var(--secondary)', mb: 1 }}>
-            ₹{totalInvestments.toLocaleString()}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {data.investments.mutualFunds.length} Mutual Funds
-          </Typography>
-        </Card>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(auto-fit, minmax(260px, 1fr))' }, gap: 4, mb: 4 }}>
+        {[
+          {
+            icon: <AttachMoney />,
+            label: 'Monthly Income',
+            value: `₹${totalIncome.toLocaleString()}`,
+            color: '#388e3c',
+            sub: `Primary: ₹${Number(data.income.inhandIncome).toLocaleString()} | Other: ₹${Number(data.income.otherIncome).toLocaleString()}`
+          },
+          {
+            icon: <Assessment />,
+            label: 'Monthly Expenses',
+            value: `₹${totalMonthlyExpenses.toLocaleString()}`,
+            color: '#f57c00',
+            sub: `Base: ₹${Number(data.expenses.monthlyExpenses).toLocaleString()} | EMI: ₹${totalEMI.toLocaleString()}`
+          },
+          {
+            icon: <TrendingUp />,
+            label: 'Monthly Savings',
+            value: `₹${monthlySavings.toLocaleString()}`,
+            color: '#1976d2',
+            sub: `Savings Rate: ${savingsRate.toFixed(1)}%`
+          },
+          {
+            icon: <AccountBalance />,
+            label: 'Total Investments',
+            value: `₹${totalInvestments.toLocaleString()}`,
+            color: '#7b1fa2',
+            sub: `${data.investments.mutualFunds.length} Mutual Funds`
+          },
+          {
+            icon: <Calculate />,
+            label: 'Total Debt',
+            value: `₹${totalDebt.toLocaleString()}`,
+            color: '#d32f2f',
+            sub: ''
+          },
+          {
+            icon: <AccountBalance />,
+            label: 'True Net Worth',
+            value: `₹${trueNetWorth.toLocaleString()}`,
+            color: '#0288d1',
+            sub: ''
+          }
+        ].map((card, i) => (
+          <Card
+            key={card.label}
+            elevation={0}
+            sx={{
+              p: 3,
+              borderRadius: 5,
+              boxShadow: '0 4px 24px rgba(120,120,120,0.08)',
+              background: '#f5f5f5',
+              border: '1px solid #e0e0e0',
+              transition: 'transform 0.18s, box-shadow 0.18s, background 0.18s, color 0.18s',
+              color: '#222',
+              '&:hover': {
+                transform: 'translateY(-4px) scale(1.02)',
+                boxShadow: '0 8px 32px rgba(120,120,120,0.13)',
+                background: card.color,
+                borderColor: card.color,
+                color: '#fff',
+                '& .MuiAvatar-root': {
+                  bgcolor: '#fff',
+                  color: card.color,
+                },
+                '& .MuiTypography-h6': {
+                  color: '#fff',
+                },
+                '& .MuiTypography-h4': {
+                  color: '#fff',
+                },
+                '& .MuiTypography-body2': {
+                  color: '#f3f3f3',
+                },
+              },
+              display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
+              minHeight: 160
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+              <Avatar sx={{ bgcolor: '#bdbdbd', width: 44, height: 44, color: '#333', transition: 'background 0.18s, color 0.18s' }}>{card.icon}</Avatar>
+              <Typography variant="h6" sx={{ fontWeight: 700, color: '#333', transition: 'color 0.18s' }}>{card.label}</Typography>
+            </Box>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: '#222', mb: 1, letterSpacing: '-1px', transition: 'color 0.18s' }}>{card.value}</Typography>
+            {card.sub && <Typography variant="body2" sx={{ color: '#555', transition: 'color 0.18s' }}>{card.sub}</Typography>}
+          </Card>
+        ))}
       </Box>
 
       {/* Investment Breakdown */}
@@ -1428,48 +1768,88 @@ function Dashboard({ data, totalEMI, onBack, onRecommend, recommendation, loadin
         )}
       </Card>
 
-      {/* Recommendation Section */}
-      {recommendation && (
+      {/* Recurring EMIs Section */}
+      {emiDetails.length > 0 && (
+        <Card elevation={0} sx={{ p: 4, borderRadius: 3, border: '1px solid var(--border-light)', mb: 4 }}>
+          <Typography variant="h5" sx={{ fontWeight: 600, mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Calculate />
+            Recurring EMIs
+          </Typography>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {emiDetails.map((loan, idx) => (
+              <Card key={idx} sx={{ p: 2, borderRadius: 2, bgcolor: 'var(--background-light)' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                  <Box>
+                    <Typography variant="body1" sx={{ fontWeight: 500 }}>{loan.type || 'Loan'}</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Principal: ₹{loan.principal} | Rate: {loan.interest}% | Tenure: {loan.tenureValue} {loan.tenureType}
+                    </Typography>
+                  </Box>
+                  <Typography variant="h6" sx={{ fontWeight: 700, color: 'var(--error)' }}>
+                    EMI: ₹{loan.emi.toLocaleString()}/month
+                  </Typography>
+                </Box>
+              </Card>
+            ))}
+          </Box>
+        </Card>
+      )}
+
+      {/* Investment Pie Chart Section */}
+      {pieGroups.length > 0 && (
+        <Card elevation={0} sx={{ p: 4, borderRadius: 3, border: '1px solid var(--border-light)', mb: 4 }}>
+          <Typography variant="h5" sx={{ fontWeight: 600, mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
+            <TrendingUp />
+            Investment Allocation
+          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+            <PieChart data={pieGroups} />
+            <Box>
+              {pieGroups.map((g, i) => (
+                <Box key={g.label} sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                  <Box sx={{ width: 16, height: 16, bgcolor: g.color, borderRadius: 2, mr: 1 }} />
+                  <Typography variant="body2">{g.label}: {((g.value / pieGroups.reduce((sum, g) => sum + g.value, 0)) * 100).toFixed(1)}% (₹{g.value.toLocaleString()})</Typography>
+                </Box>
+              ))}
+            </Box>
+          </Box>
+        </Card>
+      )}
+
+    
+      {/* Show persona and allow to proceed to goals/finance only after risk assessment is done */}
+      {riskAssessmentDone && (
         <Card elevation={0} sx={{ p: 4, borderRadius: 3, border: '1px solid var(--border-light)', mb: 4 }}>
           <Typography variant="h5" sx={{ fontWeight: 600, mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
             <Security />
-            Personalized Recommendations
+            Your Risk Profile
           </Typography>
-          
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(auto-fit, minmax(300px, 1fr))' }, gap: 3 }}>
-            <Box>
-              <Typography variant="h6" sx={{ fontWeight: 600, mb: 1, color: 'var(--primary)' }}>
-                Your Profile
-              </Typography>
-              <Typography variant="body1" sx={{ mb: 2 }}>
-                {recommendation.persona}
-              </Typography>
+          {persona && (
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="subtitle2" color="text.secondary">Persona Code: {persona.code}</Typography>
+              <Typography variant="body2" color="text.secondary">{persona.label}</Typography>
+              <Typography variant="body2" color="text.secondary">{persona.description}</Typography>
             </Box>
-            
-            <Box>
-              <Typography variant="h6" sx={{ fontWeight: 600, mb: 1, color: 'var(--success)' }}>
-                Recommended Strategy
-              </Typography>
-              <Typography variant="body1" sx={{ mb: 2 }}>
-                {recommendation.idealStrategy}
-              </Typography>
-            </Box>
-            
-            <Box>
-              <Typography variant="h6" sx={{ fontWeight: 600, mb: 1, color: 'var(--warning)' }}>
-                Market Comparison
-              </Typography>
-              <Typography variant="body1" sx={{ mb: 2 }}>
-                {recommendation.comparison}
-              </Typography>
-            </Box>
+          )}
+          <Box sx={{ mt: 4, textAlign: 'center' }}>
+            <Button
+              variant="contained"
+              color="secondary"
+              size="large"
+              onClick={startGoalsFlow}
+            >
+              Proceed to Personal Goals & Finance
+            </Button>
           </Box>
-          
-          <Alert severity="info" sx={{ mt: 3 }}>
-            <Typography variant="body2">
-              <strong>Recommendation:</strong> {recommendation.recommendation}
-            </Typography>
-          </Alert>
+        </Card>
+      )}
+      {/* Personal Goals & Finance Flow Section (hidden until risk assessment is done) */}
+      {riskAssessmentDone && goalsFlowActive && (
+        <Card elevation={0} sx={{ p: 4, borderRadius: 3, border: '1px solid var(--border-light)', mb: 4 }}>
+          <Typography variant="h5" sx={{ fontWeight: 600, mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
+            Personal Goals & Finance
+          </Typography>
+          {/* ...existing goals/finance questions and recommendations UI... */}
         </Card>
       )}
 
@@ -1586,367 +1966,391 @@ const branchOptions: Record<string, string[][]> = {
 };
 
 function RiskQuiz({ data, onBack, onQuizComplete }: { data: FormData; onBack: () => void; onQuizComplete: (quizResult: any) => void }) {
-  // Step 0: Demographics
-  // Step 1: Debt
-  // Step 2: Knowledge level
-  // Step 3+: Dynamic knowledge questions
-  // Step N: Goals/horizon/savings
+  // New question arrays from previous step
+  const demographicsQuestions = [
+    {
+      key: 'ageGroup',
+      label: 'Age Group',
+      type: 'radio',
+      options: [
+        '18–25 years (Early Career)',
+        '26–35 years (Emerging Accumulator)',
+        '36–50 years (Established Professional)',
+        '51–65 years (Pre-Retirement)',
+        'Over 65 years (Retiree or Late Stage)'
+      ]
+    }
+  ];
+
+  const debtQuestions = [
+    {
+      key: 'hasDebt',
+      label: 'Do you currently have any outstanding debt or loans?',
+      type: 'radio',
+      options: ['No', 'Yes']
+    }
+    // If Yes, show loan details as before
+  ];
+
+  const knowledgeLevels = [
+    'Minimal (Just starting, little experience)',
+    'Moderate (Comfortable with basics, some experience)',
+    'Advanced (Deep understanding; manage portfolio aggressively)'
+  ];
+
+  const minimalQuestions = [
+    'Do you understand what mutual funds are?',
+    'Have you ever invested in stocks or equity-related products?',
+    'Do you know what SIP (Systematic Investment Plan) means?',
+    'Are you aware of risks like market volatility, liquidity, and inflation?'
+  ];
+
+  const moderateQuestions = [
+    {
+      label: 'How do you typically select your investments?',
+      type: 'radio',
+      options: [
+        'I rely on recommendations from friends/family.',
+        'I follow advice from online research or financial news.',
+        'I consult with a financial advisor.',
+        'I use robo-advisors or online investment platforms.',
+        'I make decisions independently, using my own research.'
+      ]
+    },
+    {
+      label: 'How often do you review your investment portfolio?',
+      type: 'radio',
+      options: [
+        'Rarely or only when prompted.',
+        'Once or twice a year.',
+        'Quarterly.',
+        'Monthly.',
+        'Weekly or more often.'
+      ]
+    },
+    {
+      label: 'How comfortable are you with asset allocation and diversification principles?',
+      type: 'radio',
+      options: [
+        'Not comfortable, I prefer to keep things simple.',
+        'Somewhat comfortable, but I prefer expert advice.',
+        'Comfortable, I apply these principles on my own.',
+        'Very comfortable, I actively review and adjust allocation.'
+      ]
+    },
+    {
+      label: 'Which types of investments have you used?',
+      type: 'checkbox',
+      options: [
+        'Bank deposits, FDs, RDs',
+        'Mutual funds (equity, debt, hybrid)',
+        'Direct stocks/equities',
+        'Bonds',
+        'Gold / Precious metals',
+        'Real estate',
+        'Alternative investments (REITs, crypto, P2P lending, etc.)'
+      ]
+    },
+    {
+      label: 'When markets are volatile, how do you typically react?',
+      type: 'radio',
+      options: [
+        'I get worried and consider selling my investments.',
+        'I wait and watch before making any decisions.',
+        'I usually hold my current investments.',
+        'I look for buying opportunities.'
+      ]
+    }
+  ];
+
+  const advancedQuestions = [
+    {
+      label: 'How do you manage your investment portfolio?',
+      type: 'radio',
+      options: [
+        'Entirely by myself (DIY approach).',
+        'With occasional help from professionals/consultants.',
+        'With regular input from a financial advisor or wealth manager.',
+        'Through automated/algorithmic platforms (e.g., robo-advisors).'
+      ]
+    },
+    {
+      label: 'Which advanced instruments have you invested in?',
+      type: 'checkbox',
+      options: [
+        'Derivatives (options, futures, swaps)',
+        'International equities, bonds, or funds',
+        'PMS/AIFs (portfolio management/alternative investment funds)',
+        'Startups (angel or VC investments)',
+        'Real estate investment trusts (REITs, INVITs)',
+        'Cryptocurrencies or digital assets',
+        'Structured products'
+      ]
+    },
+    {
+      label: 'How frequently do you rebalance your portfolio?',
+      type: 'radio',
+      options: [
+        'Rarely or never.',
+        'Only when my advisor suggests.',
+        'Once a year.',
+        'Every 6 months.',
+        'Quarterly or more frequently.'
+      ]
+    },
+    {
+      label: 'What is your primary consideration while making investment decisions?',
+      type: 'radio',
+      options: [
+        'Maximizing returns, even with higher risk.',
+        'Managing risk and return equally.',
+        'Tax efficiency and long-term compounding.',
+        'Diversification across asset classes and geographies.',
+        'Sustainable/ESG investments.'
+      ]
+    },
+    {
+      label: 'How do you monitor investment performance?',
+      type: 'radio',
+      options: [
+        'Regular reports/statements from platforms or advisors.',
+        'Custom dashboards or spreadsheets.',
+        'Real-time tracking using mobile or desktop apps.',
+        'I rely on annual/semi-annual reviews only.'
+      ]
+    }
+  ];
+
+  const goalsQuestions = [
+    {
+      key: 'primaryObjective',
+      label: 'What is your primary financial objective?',
+      type: 'radio',
+      options: [
+        'Preserve Current Wealth (Stability, capital protection)',
+        'Grow Wealth (Aggressive appreciation)',
+        'Generate Income (Regular cashflow/dividends)',
+        'Retirement Planning',
+        'Funding Child\'s Education',
+        'Major Purchase (Home/Auto)',
+        'Other'
+      ],
+      other: true
+    },
+    {
+      key: 'timeHorizon',
+      label: 'What is your planned investment time horizon for major goals?',
+      type: 'radio',
+      options: [
+        'Less than 1 year (Short Term)',
+        '1–3 years (Short-Medium Term)',
+        '3–5 years (Medium Term)',
+        'More than 5 years (Long Term/Retirement)'
+      ]
+    },
+    {
+      key: 'savingsRate',
+      label: 'What portion of your monthly income do you consistently save or invest?',
+      type: 'radio',
+      options: [
+        'Less than 10%',
+        '10%–20%',
+        '20%–40%',
+        'Over 40%',
+        'It varies each month'
+      ]
+    },
+    {
+      key: 'marketDownturn',
+      label: 'Suppose your investment dropped by 20% in a market downturn. What would you most likely do?',
+      type: 'radio',
+      options: [
+        'Sell all investments to avoid further losses',
+        'Sell a portion, wait for stabilization',
+        'Do nothing, wait for recovery',
+        'Invest more while prices are lower',
+        'Unsure'
+      ]
+    },
+    {
+      key: 'investmentAttitude',
+      label: 'Which statement best describes your investment attitude?',
+      type: 'radio',
+      options: [
+        'I avoid risk and prefer guaranteed returns',
+        'I can accept modest risk for slightly higher returns',
+        'I am comfortable with significant risk for potentially higher returns',
+        'My risk preference changes based on market/news'
+      ]
+    }
+  ];
+
+  // State for answers
   const [step, setStep] = useState(0);
-  const [demographics, setDemographics] = useState({
-    ageGroup: '',
-    employment: '',
-    dependents: [] as string[],
-    majorExpenses: [] as string[],
-    insurance: [] as string[],
-  });
-  const [debt, setDebt] = useState({ hasDebt: '', loans: [] as { type: string; principal: string; interest: string; tenure: string; tenureValue: string; tenureType: string }[] });
+  const [answers, setAnswers] = useState<any>({});
   const [knowledgeLevel, setKnowledgeLevel] = useState('');
-  const [knowledgeAnswers, setKnowledgeAnswers] = useState<string[]>([]);
-  const [goal, setGoal] = useState('');
-  const [horizon, setHorizon] = useState('');
-  const [savingsRate, setSavingsRate] = useState('');
   const [error, setError] = useState('');
 
-  // Dynamic questions for knowledge
-  const knowledgeQuestions: Record<string, string[]> = {
-    Low: [
-      'Are you comfortable with basic savings accounts and FDs?',
-      'Do you prefer guaranteed returns over higher but uncertain returns?',
-      'Would you like to learn more about investing?'
-    ],
-    Medium: [
-      'Have you invested in mutual funds or stocks before?',
-      'How do you react to small losses in your investments?',
-      'What is your preferred investment horizon?',
-      'Do you track your expenses and investments regularly?'
-    ],
-    High: [
-      'How do you diversify your investments?',
-      'What risk management strategies do you use?',
-      'What is your annualized return expectation?',
-      'How do you react to a 20% drawdown?',
-      'How often do you review and adjust your portfolio?'
-    ]
-  };
+  // Build the full question flow dynamically
+  let questionFlow: any[] = [
+    ...demographicsQuestions,
+    ...debtQuestions
+  ];
+  // Insert loan details if needed
+  if (answers.hasDebt === 'Yes') {
+    // For simplicity, ask for one loan at a time (could be extended)
+    questionFlow.push({
+      key: 'loanDetails',
+      label: 'Please provide details for your loan:',
+      type: 'loan',
+    });
+  }
+  // Knowledge level
+  questionFlow.push({
+    key: 'knowledgeLevel',
+    label: 'How would you assess your investment knowledge?',
+    type: 'radio',
+    options: knowledgeLevels
+  });
+  // Branching for knowledge
+  if (knowledgeLevel.startsWith('Minimal')) {
+    minimalQuestions.forEach((q, i) => {
+      questionFlow.push({
+        key: `minimal_${i}`,
+        label: q,
+        type: 'radio',
+        options: ['Yes', 'No']
+      });
+    });
+  } else if (knowledgeLevel.startsWith('Moderate')) {
+    moderateQuestions.forEach((q, i) => {
+      questionFlow.push({
+        key: `moderate_${i}`,
+        label: q.label,
+        type: q.type,
+        options: q.options
+      });
+    });
+  } else if (knowledgeLevel.startsWith('Advanced')) {
+    advancedQuestions.forEach((q, i) => {
+      questionFlow.push({
+        key: `advanced_${i}`,
+        label: q.label,
+        type: q.type,
+        options: q.options
+      });
+    });
+  }
+  // Goals and behavioral
+  questionFlow = questionFlow.concat(goalsQuestions);
 
-  // Steps
-  const totalSteps = 5 + (knowledgeLevel ? (knowledgeQuestions[knowledgeLevel] as string[]).length : 0);
+  // Render current question
+  const currentQ = questionFlow[step];
 
   // Handlers
-  const handleDemographicsChange = (field: string, value: string | string[]) => {
-    setDemographics({ ...demographics, [field]: value });
+  const handleChange = (key: string, value: any) => {
+    setAnswers((prev: any) => ({ ...prev, [key]: value }));
     setError('');
+    if (key === 'knowledgeLevel') setKnowledgeLevel(value);
   };
-  const handleDebtChange = (field: string, value: any) => {
-    setDebt({ ...debt, [field]: value });
-    setError('');
-  };
-  const handleLoanChange = (idx: number, field: string, value: string) => {
-    const updated = debt.loans.map((l, i) => i === idx ? { ...l, [field]: value } : l);
-    setDebt({ ...debt, loans: updated });
-  };
-  const addLoan = () => {
-    setDebt({ ...debt, loans: [...debt.loans, { type: '', principal: '', interest: '', tenure: '', tenureValue: '', tenureType: 'months' }] });
-  };
-  const removeLoan = (idx: number) => {
-    setDebt({ ...debt, loans: debt.loans.filter((_, i) => i !== idx) });
-  };
-  const handleKnowledgeLevel = (val: string) => {
-    setKnowledgeLevel(val);
-    setKnowledgeAnswers([]);
-    setError('');
-  };
-  const handleKnowledgeAnswer = (idx: number, val: string) => {
-    const updated = [...knowledgeAnswers];
-    updated[idx] = val;
-    setKnowledgeAnswers(updated);
-    setError('');
-  };
+
   const handleNext = () => {
-    // Validation per step
-    if (step === 0) {
-      if (!demographics.ageGroup || !demographics.employment) {
-        setError('Please fill all required fields.');
-        return;
-      }
-    } else if (step === 1) {
-      if (!debt.hasDebt) {
-        setError('Please select if you have any debts or loans.');
-        return;
-      }
-      if (debt.hasDebt === 'Yes' && debt.loans.some(l => !l.type || !l.principal || !l.interest || !l.tenure)) {
-        setError('Please fill all loan details and tenure.');
-        return;
-      }
-    } else if (step === 2) {
-      if (!knowledgeLevel) {
-        setError('Please select your investment knowledge level.');
-        return;
-      }
-    } else if (step > 2 && step < 3 + (knowledgeQuestions[knowledgeLevel] as string[]).length) {
-      const idx = step - 3;
-      if (!knowledgeAnswers[idx]) {
-        setError('Please answer the question.');
-        return;
-      }
-    } else if (step === 3 + (knowledgeQuestions[knowledgeLevel] as string[]).length) {
-      if (!goal) {
-        setError('Please select your main financial goal.');
-        return;
-      }
-    } else if (step === 4 + (knowledgeQuestions[knowledgeLevel] as string[]).length) {
-      if (!horizon) {
-        setError('Please select your investment horizon.');
-        return;
-      }
-    } else if (step === 5 + (knowledgeQuestions[knowledgeLevel] as string[]).length) {
-      if (!savingsRate) {
-        setError('Please select your savings/investment rate.');
-        return;
-      }
+    // Validation
+    if (currentQ.type === 'radio' && !answers[currentQ.key]) {
+      setError('Please select an option.');
+      return;
+    }
+    if (currentQ.type === 'checkbox' && (!answers[currentQ.key] || answers[currentQ.key].length === 0)) {
+      setError('Please select at least one option.');
+      return;
+    }
+    if (currentQ.type === 'loan' && (!answers.loanType || !answers.loanPrincipal || !answers.loanInterest || !answers.loanTenure)) {
+      setError('Please fill all loan details.');
+      return;
     }
     setStep(step + 1);
   };
   const handleBack = () => setStep(Math.max(0, step - 1));
   const handleSubmit = () => {
-    onQuizComplete({
-      demographics,
-      debt,
-      knowledgeLevel,
-      knowledgeAnswers,
-      goal,
-      horizon,
-      savingsRate
-    });
+    onQuizComplete(answers);
   };
 
-  // Render per step
+  // Render logic for each question type
   let content = null;
-  if (step === 0) {
+  if (currentQ.type === 'radio') {
+    const value = answers[currentQ.key] ?? '';
     content = (
       <>
-        <div style={{ fontWeight: 500, marginBottom: 12 }}>Demographics & Financial Snapshot</div>
-        <label>Age group:<br />
-          {['18-25', '26-35', '36-50', '51-65', '65+'].map(opt => (
-            <label key={opt} style={{ display: 'block', marginBottom: 8 }}>
-              <input
-                type="radio"
-                name="ageGroup"
-                value={opt}
-                checked={demographics.ageGroup === opt}
-                onChange={e => handleDemographicsChange('ageGroup', e.target.value)}
-              /> {opt}
-            </label>
-          ))}
-        </label><br /><br />
-        <label>Employment status:<br />
-          {['Salaried', 'Self-employed', 'Retired', 'Student', 'Other'].map(opt => (
-            <label key={opt} style={{ display: 'block', marginBottom: 8 }}>
-              <input
-                type="radio"
-                name="employment"
-                value={opt}
-                checked={demographics.employment === opt}
-                onChange={e => handleDemographicsChange('employment', e.target.value)}
-              /> {opt}
-            </label>
-          ))}
-        </label><br /><br />
-        <label>Financial dependents (check all that apply):<br />
-          {['Children', 'Parents', 'Spouse', 'Others', 'None'].map(opt => (
-            <span key={opt} style={{ marginRight: 12 }}>
-              <input
-                type="checkbox"
-                checked={demographics.dependents.includes(opt)}
-                onChange={e => {
-                  if (e.target.checked) {
-                    if (opt === 'None') {
-                      handleDemographicsChange('dependents', ['None']);
-                    } else {
-                    handleDemographicsChange('dependents', [...demographics.dependents.filter(d => d !== 'None'), opt]);
-                    }
-                  } else {
-                    const filtered = demographics.dependents.filter(d => d !== opt);
-                    if (filtered.length === 0) {
-                      handleDemographicsChange('dependents', ['None']);
-                    } else {
-                      handleDemographicsChange('dependents', filtered);
-                    }
-                  }
-                }}
-              /> {opt}
-            </span>
-          ))}
-        </label><br /><br />
-        <label>Major upcoming expenses (check all that apply):<br />
-          {['Home', 'Education', 'Wedding', 'Medical', 'Other'].map(opt => (
-            <span key={opt} style={{ marginRight: 12 }}>
-              <input
-                type="checkbox"
-                checked={demographics.majorExpenses.includes(opt)}
-                onChange={e => {
-                  if (e.target.checked) {
-                    handleDemographicsChange('majorExpenses', [...demographics.majorExpenses, opt]);
-                  } else {
-                    const filtered = demographics.majorExpenses.filter(m => m !== opt);
-                    handleDemographicsChange('majorExpenses', filtered.length === 0 ? [] : filtered);
-                  }
-                }}
-              /> {opt}
-            </span>
-          ))}
-        </label><br /><br />
-        <label>Insurance (check all that apply):<br />
-          <input type="checkbox" checked={demographics.insurance.includes('Health')} onChange={e => handleDemographicsChange('insurance', e.target.checked ? [...demographics.insurance.filter(i => i !== 'None'), 'Health'] : demographics.insurance.filter(i => i !== 'Health'))} /> Health
-          <input type="checkbox" checked={demographics.insurance.includes('Life')} onChange={e => handleDemographicsChange('insurance', e.target.checked ? [...demographics.insurance.filter(i => i !== 'None'), 'Life'] : demographics.insurance.filter(i => i !== 'Life'))} style={{ marginLeft: 12 }} /> Life
-          <input type="checkbox" checked={demographics.insurance.includes('None')} onChange={e => handleDemographicsChange('insurance', e.target.checked ? ['None'] : demographics.insurance.filter(i => i !== 'None'))} style={{ marginLeft: 12 }} /> None
-        </label>
-      </>
-    );
-  } else if (step === 1) {
-    content = (
-      <>
-        <div style={{ fontWeight: 500, marginBottom: 12 }}>Debt/Liabilities</div>
-        <label>Do you have any debts or loans?<br />
-          {['No', 'Yes'].map(opt => (
-            <label key={opt} style={{ display: 'block', marginBottom: 8 }}>
-              <input
-                type="radio"
-                name="hasDebt"
-                value={opt}
-                checked={debt.hasDebt === opt}
-                onChange={e => handleDebtChange('hasDebt', e.target.value)}
-              /> {opt}
-            </label>
-          ))}
-        </label><br /><br />
-        {debt.hasDebt === 'Yes' && (
-          <div style={{ marginBottom: 12 }}>
-            <button type="button" onClick={addLoan}>Add Loan</button>
-            {debt.loans.map((loan, idx) => {
-              // Calculate EMI for this loan
-              const p = parseFloat(loan.principal) || 0;
-              const rate = parseFloat(loan.interest) || 0;
-              const tenureValue = parseInt(loan.tenureValue) || 0;
-              const tenureType = loan.tenureType || 'months';
-              const totalTenureMonths = tenureType === 'years' ? tenureValue * 12 : tenureValue;
-              let emi = 0;
-              if (p > 0 && rate > 0 && totalTenureMonths > 0) {
-                const r = rate / 12 / 100;
-                emi = r === 0 ? p / totalTenureMonths : p * r * Math.pow(1 + r, totalTenureMonths) / (Math.pow(1 + r, totalTenureMonths) - 1);
-              }
-              return (
-              <div key={idx} style={{ border: '1px solid #eee', borderRadius: 6, padding: 8, margin: '8px 0' }}>
-                <label>Type: <input value={loan.type} onChange={e => handleLoanChange(idx, 'type', e.target.value)} /></label>
-                <label style={{ marginLeft: 8 }}>Principal left: <input value={loan.principal} onChange={e => handleLoanChange(idx, 'principal', e.target.value)} /></label>
-                <label style={{ marginLeft: 8 }}>Interest rate (%): <input value={loan.interest} onChange={e => handleLoanChange(idx, 'interest', e.target.value)} /></label>
-                  <label style={{ marginLeft: 8 }}>Tenure (months/years): <input value={loan.tenure} onChange={e => handleLoanChange(idx, 'tenure', e.target.value)} /></label>
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                    EMI: ₹{emi > 0 ? emi.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '--'} / month
-                  </Typography>
-                <button type="button" onClick={() => removeLoan(idx)} style={{ marginLeft: 8 }}>Remove</button>
-              </div>
-              );
-            })}
-          </div>
+        <Typography variant="h6" sx={{ mb: 2 }}>{currentQ.label}</Typography>
+        {currentQ.options.map((opt: string) => (
+          <label key={opt} style={{ display: 'block', marginBottom: 8 }}>
+            <input
+              type="radio"
+              name={currentQ.key}
+              value={opt}
+              checked={value === opt}
+              onChange={e => handleChange(currentQ.key, e.target.value)}
+            /> {opt}
+          </label>
+        ))}
+        {currentQ.other && (
+          <TextField
+            label="Other (please specify)"
+            value={answers[`${currentQ.key}_other`] ?? ''}
+            onChange={e => handleChange(`${currentQ.key}_other`, e.target.value)}
+            sx={{ mt: 2 }}
+          />
         )}
       </>
     );
-  } else if (step === 2) {
+  } else if (currentQ.type === 'checkbox') {
+    const value: string[] = Array.isArray(answers[currentQ.key]) ? answers[currentQ.key] : [];
     content = (
       <>
-        <div style={{ fontWeight: 500, marginBottom: 12 }}>Investment Knowledge</div>
-        <label>How would you rate your investment knowledge?<br />
-          {['Low', 'Medium', 'High'].map(opt => (
-            <label key={opt} style={{ display: 'block', marginBottom: 8 }}>
-              <input
-                type="radio"
-                name="knowledgeLevel"
-                value={opt}
-                checked={knowledgeLevel === opt}
-                onChange={e => handleKnowledgeLevel(e.target.value)}
-              /> {opt}
-            </label>
-          ))}
-        </label>
-      </>
-    );
-  } else if (step > 2 && step < 3 + (knowledgeQuestions[knowledgeLevel] as string[]).length) {
-    const idx = step - 3;
-    const questions = knowledgeQuestions[knowledgeLevel] as string[];
-    content = (
-      <>
-        <div style={{ fontWeight: 500, marginBottom: 12 }}>Question {idx + 1} of {questions.length}</div>
-        <div style={{ marginBottom: 12 }}>{questions[idx]}</div>
-        {['Yes', 'No'].map(opt => (
+        <Typography variant="h6" sx={{ mb: 2 }}>{currentQ.label}</Typography>
+        {currentQ.options.map((opt: string) => (
           <label key={opt} style={{ display: 'block', marginBottom: 8 }}>
             <input
-              type="radio"
-              name={`knowledge${idx}`}
+              type="checkbox"
+              name={currentQ.key}
               value={opt}
-              checked={knowledgeAnswers[idx] === opt}
-              onChange={e => handleKnowledgeAnswer(idx, e.target.value)}
+              checked={value.includes(opt)}
+              onChange={e => {
+                let newArr = value;
+                if (e.target.checked) {
+                  newArr = [...newArr, opt];
+                } else {
+                  newArr = newArr.filter((v: string) => v !== opt);
+                }
+                handleChange(currentQ.key, newArr);
+              }}
             /> {opt}
           </label>
         ))}
+        {currentQ.other && (
+          <TextField
+            label="Other (please specify)"
+            value={answers[`${currentQ.key}_other`] ?? ''}
+            onChange={e => handleChange(`${currentQ.key}_other`, e.target.value)}
+            sx={{ mt: 2 }}
+          />
+        )}
       </>
     );
-  } else if (step === 3 + (knowledgeQuestions[knowledgeLevel] as string[]).length) {
+  } else if (currentQ.type === 'loan') {
     content = (
       <>
-        <div style={{ fontWeight: 500, marginBottom: 12 }}>Main Financial Goal</div>
-        {['Wealth preservation', 'Growth', 'Income', 'Retirement', 'Child\'s education', 'Other'].map(opt => (
-          <label key={opt} style={{ display: 'block', marginBottom: 8 }}>
-            <input
-              type="radio"
-              name="goal"
-              value={opt}
-              checked={goal === opt}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => { setGoal(e.target.value); setError(''); }}
-            /> {opt}
-          </label>
-        ))}
-      </>
-    );
-  } else if (step === 4 + (knowledgeQuestions[knowledgeLevel] as string[]).length) {
-    content = (
-      <>
-        <div style={{ fontWeight: 500, marginBottom: 12 }}>Investment Horizon</div>
-        {['<1 year', '1-3 years', '3-5 years', '>5 years'].map(opt => (
-          <label key={opt} style={{ display: 'block', marginBottom: 8 }}>
-            <input
-              type="radio"
-              name="horizon"
-              value={opt}
-              checked={horizon === opt}
-              onChange={e => { setHorizon(e.target.value); setError(''); }}
-            /> {opt}
-          </label>
-        ))}
-      </>
-    );
-  } else if (step === 5 + (knowledgeQuestions[knowledgeLevel] as string[]).length) {
-    content = (
-      <>
-        <div style={{ fontWeight: 500, marginBottom: 12 }}>Monthly Savings/Investment Rate</div>
-        {['<10%', '10-20%', '20-40%', '>40%'].map(opt => (
-          <label key={opt} style={{ display: 'block', marginBottom: 8 }}>
-            <input
-              type="radio"
-              name="savingsRate"
-              value={opt}
-              checked={savingsRate === opt}
-              onChange={e => { setSavingsRate(e.target.value); setError(''); }}
-            /> {opt}
-          </label>
-        ))}
+        <Typography variant="h6" sx={{ mb: 2 }}>{currentQ.label}</Typography>
+        <TextField label="Type of Loan" value={answers.loanType ?? ''} onChange={e => handleChange('loanType', e.target.value)} sx={{ mb: 2 }} fullWidth />
+        <TextField label="Outstanding Principal Amount (₹)" value={answers.loanPrincipal ?? ''} onChange={e => handleChange('loanPrincipal', e.target.value)} sx={{ mb: 2 }} fullWidth />
+        <TextField label="Interest Rate (% per annum)" value={answers.loanInterest ?? ''} onChange={e => handleChange('loanInterest', e.target.value)} sx={{ mb: 2 }} fullWidth />
+        <TextField label="Remaining Tenure (Months/Years)" value={answers.loanTenure ?? ''} onChange={e => handleChange('loanTenure', e.target.value)} sx={{ mb: 2 }} fullWidth />
       </>
     );
   }
 
   return (
     <Box sx={{ maxWidth: 800, mx: 'auto', p: 3 }}>
-      {/* Header */}
       <Paper elevation={0} sx={{ p: 4, mb: 4, borderRadius: 3, background: 'linear-gradient(135deg, var(--secondary), #ff6b9d)', color: 'white' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.2)', width: 48, height: 48 }}>
@@ -1962,41 +2366,13 @@ function RiskQuiz({ data, onBack, onQuizComplete }: { data: FormData; onBack: ()
           </Box>
         </Box>
       </Paper>
-
-      {/* Progress Bar */}
-      <Paper elevation={0} sx={{ p: 3, mb: 4, borderRadius: 3 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-          <Typography variant="h6" sx={{ fontWeight: 600 }}>
-            Progress
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Step {step + 1} of {totalSteps + 1}
-          </Typography>
-        </Box>
-        <Box sx={{ width: '100%', height: 8, bgcolor: 'var(--border-light)', borderRadius: 4, overflow: 'hidden' }}>
-          <Box 
-            sx={{ 
-              height: '100%', 
-              background: 'linear-gradient(90deg, var(--primary), var(--primary-light))',
-              borderRadius: 4,
-              transition: 'width 0.3s ease',
-              width: `${((step + 1) / (totalSteps + 1)) * 100}%`
-            }} 
-          />
-        </Box>
-      </Paper>
-
-      {/* Quiz Content */}
       <Paper elevation={0} sx={{ p: 4, borderRadius: 3, border: '1px solid var(--border-light)' }}>
-      {content}
-
+        {content}
         {error && (
           <Alert severity="error" sx={{ mt: 3 }}>
             {error}
           </Alert>
         )}
-
-        {/* Navigation Buttons */}
         <Box sx={{ display: 'flex', gap: 2, mt: 4, justifyContent: 'space-between' }}>
           <Button
             variant="outlined"
@@ -2007,8 +2383,7 @@ function RiskQuiz({ data, onBack, onQuizComplete }: { data: FormData; onBack: ()
           >
             Back
           </Button>
-          
-        {step < totalSteps ? (
+          {step < questionFlow.length - 1 ? (
             <Button
               variant="contained"
               endIcon={<ArrowForward />}
@@ -2041,7 +2416,6 @@ function RiskQuiz({ data, onBack, onQuizComplete }: { data: FormData; onBack: ()
               Complete Assessment
             </Button>
           )}
-          
           <Button
             variant="outlined"
             onClick={onBack}
