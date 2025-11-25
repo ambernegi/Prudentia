@@ -256,6 +256,7 @@ export default function Home() {
     persona: string;
     idealStrategy: string;
     comparison: string;
+    strategies?: any;
   }>(null);
   const [loadingRecommendation, setLoadingRecommendation] = useState(false);
   const [quizData, setQuizData] = useState<{ ageGroup: string; answers: string[] } | null>(null);
@@ -812,7 +813,7 @@ export default function Home() {
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ ...dashboardData, riskQuiz: quizResult }),
                 });
-                let data;
+                let data: any;
                 try {
                   data = await res.json();
                 } catch (jsonErr) {
@@ -823,7 +824,8 @@ export default function Home() {
                   recommendation: data?.recommendation || "(No recommendation returned)",
                   persona: data?.persona || "Unknown",
                   idealStrategy: data?.idealStrategy || "Unknown",
-                  comparison: data?.comparison || "Unknown"
+                  comparison: data?.comparison || "Unknown",
+                  strategies: data?.strategies
                 });
               } catch (err) {
                 setRecommendation({
@@ -1478,6 +1480,7 @@ function Dashboard({ data, totalEMI, onBack, onRecommend, recommendation, loadin
     persona: string;
     idealStrategy: string;
     comparison: string;
+    strategies?: any;
   } | null;
   loadingRecommendation?: boolean;
 }) {
@@ -1596,6 +1599,16 @@ function Dashboard({ data, totalEMI, onBack, onRecommend, recommendation, loadin
               </Typography>
             </Box>
           </Box>
+          {recommendation && recommendation.persona && (
+            <Box sx={{ textAlign: { xs: 'left', sm: 'right' }, mt: { xs: 2, sm: 0 } }}>
+              <Typography variant="overline" sx={{ display: 'block', color: '#424242' }}>
+                Persona
+              </Typography>
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                {recommendation.persona}
+              </Typography>
+            </Box>
+          )}
           <Button
             variant="outlined"
             startIcon={<ArrowBack />}
@@ -1816,7 +1829,95 @@ function Dashboard({ data, totalEMI, onBack, onRecommend, recommendation, loadin
         </Card>
       )}
 
-    
+      {/* Strategy recommendations from risk assessment */}
+      {recommendation && (
+        <Card elevation={0} sx={{ p: 4, borderRadius: 3, border: '1px solid var(--border-light)', mb: 4 }}>
+          <Typography variant="h5" sx={{ fontWeight: 600, mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Assessment />
+            Strategy Recommendations
+          </Typography>
+          <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
+            Based on your risk assessment, here are tailored investment strategy ideas.
+          </Typography>
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+              Model Strategy
+            </Typography>
+            <Typography variant="body2" sx={{ color: '#424242', whiteSpace: 'pre-line' }}>
+              {recommendation.recommendation}
+            </Typography>
+          </Box>
+          {recommendation.strategies?.primary && (
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                Primary Strategy: {recommendation.strategies.primary.title}
+              </Typography>
+              {recommendation.strategies.primary.targetAllocation && (
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.2, mb: 1.5 }}>
+                  {Object.entries(recommendation.strategies.primary.targetAllocation).map(
+                    ([k, v]: [string, any]) => (
+                      <Chip
+                        key={k}
+                        label={`${k}: ${v}%`}
+                        size="small"
+                        sx={{
+                          bgcolor: 'rgba(25,118,210,0.08)',
+                          borderRadius: 2,
+                          fontSize: 12,
+                        }}
+                      />
+                    )
+                  )}
+                </Box>
+              )}
+              {recommendation.strategies.primary.instruments && (
+                <Box sx={{ mb: 1.5 }}>
+                  <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', mb: 0.5 }}>
+                    Suggested instruments
+                  </Typography>
+                  <ul style={{ margin: 0, paddingLeft: 18 }}>
+                    {recommendation.strategies.primary.instruments.map((inst: string) => (
+                      <li key={inst} style={{ fontSize: 13, marginBottom: 2 }}>
+                        {inst}
+                      </li>
+                    ))}
+                  </ul>
+                </Box>
+              )}
+              {recommendation.strategies.primary.narrative && (
+                <Typography variant="body2" sx={{ color: '#424242', whiteSpace: 'pre-line' }}>
+                  {recommendation.strategies.primary.narrative}
+                </Typography>
+              )}
+            </Box>
+          )}
+          {recommendation.strategies?.implementationTips && (
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                Implementation Tips
+              </Typography>
+              <ul style={{ margin: 0, paddingLeft: 18 }}>
+                {recommendation.strategies.implementationTips.map((tip: string) => (
+                  <li key={tip} style={{ fontSize: 13, marginBottom: 2 }}>
+                    {tip}
+                  </li>
+                ))}
+              </ul>
+            </Box>
+          )}
+          {recommendation.comparison && (
+            <Box sx={{ mt: 1 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                Portfolio Comparison
+              </Typography>
+              <Typography variant="body2" sx={{ color: '#424242', whiteSpace: 'pre-line' }}>
+                {recommendation.comparison}
+              </Typography>
+            </Box>
+          )}
+        </Card>
+      )}
+
       {/* Show persona and allow to proceed to goals/finance only after risk assessment is done */}
       {riskAssessmentDone && (
         <Card elevation={0} sx={{ p: 4, borderRadius: 3, border: '1px solid var(--border-light)', mb: 4 }}>
