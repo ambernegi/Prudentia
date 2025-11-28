@@ -256,6 +256,13 @@ const theme = createTheme({
     body1: { fontWeight: 400 },
     body2: { fontWeight: 400 },
   },
+  palette: {
+    primary: {
+      main: '#212121',
+      light: '#424242',
+      dark: '#111111',
+    },
+  },
   components: {
     MuiButton: {
       defaultProps: {
@@ -820,7 +827,7 @@ export default function Home() {
       <Paper 
         elevation={3} 
         sx={{ 
-          background: 'linear-gradient(135deg, var(--primary), var(--primary-light))',
+          background: 'linear-gradient(135deg, #212121, #424242)',
           color: 'white',
           py: { xs: 2, sm: 3 },
           mb: 4,
@@ -1820,7 +1827,7 @@ function Dashboard({ data, totalEMI, onBack, onRecommend, recommendation, loadin
           p: { xs: 2.5, sm: 4 },
           mb: 4,
           borderRadius: 4,
-          background: 'linear-gradient(135deg, rgba(25,118,210,0.08), rgba(25,118,210,0.02))',
+          background: 'linear-gradient(135deg, rgba(33,33,33,0.16), rgba(33,33,33,0.04))',
           border: '1px solid var(--border-light)',
           boxShadow: 'var(--shadow-medium)',
         }}
@@ -1867,12 +1874,17 @@ function Dashboard({ data, totalEMI, onBack, onRecommend, recommendation, loadin
                   size="small"
                   sx={{ bgcolor: 'rgba(67,160,71,0.12)', color: '#1b5e20' }}
                 />
-                <Chip
-                  label={`DTI: ${dti}`}
-                  size="small"
-                  sx={{ bgcolor: 'rgba(255,143,0,0.12)', color: '#e65100' }}
-                />
+                <Tooltip title="Debt-to-Income Ratio: total debt divided by your annual income. Lower is healthier.">
+                  <Chip
+                    label={`DTI: ${dti}`}
+                    size="small"
+                    sx={{ bgcolor: 'rgba(255,143,0,0.12)', color: '#e65100', cursor: 'help' }}
+                  />
+                </Tooltip>
               </Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                {persona.description}
+              </Typography>
             </Box>
           </Box>
           <Box
@@ -2061,12 +2073,15 @@ function Dashboard({ data, totalEMI, onBack, onRecommend, recommendation, loadin
               <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
                 {strategyPlan.name}
               </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                Persona: {persona.code} – {persona.label}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                {strategyPlan.headline}
-              </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            Persona: {persona.code} – {persona.label}
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            {persona.description}
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            {strategyPlan.headline}
+          </Typography>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                 {strategyPlan.phases.map((phase, idx) => (
                   <Box
