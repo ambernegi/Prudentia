@@ -139,6 +139,8 @@ const defaultForm: FormData = {
 
 type Step = 0 | 1 | 2 | 3 | 4 | 5;
 
+type ViewMode = "form" | "dashboard" | "riskQuiz";
+
 // Pie chart helper
 function PieChart({ data }: { data: { label: string; value: number; color: string }[] }) {
   const total = data.reduce((sum, d) => sum + d.value, 0);
@@ -243,6 +245,7 @@ const theme = createTheme({
 });
 
 export default function Home() {
+  const [view, setView] = useState<ViewMode>("form");
   const [step, setStep] = useState<Step>(0);
   const [form, setForm] = useState<FormData>(defaultForm);
   const [mfName, setMfName] = useState("");
@@ -250,7 +253,6 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [dashboardData, setDashboardData] = useState<FormData | null>(null);
-  const [showQuiz, setShowQuiz] = useState(false);
   const [recommendation, setRecommendation] = useState<null | {
     recommendation: string;
     persona: string;
@@ -709,7 +711,8 @@ export default function Home() {
       body: JSON.stringify(form),
     });
     setLoading(false);
-    setDashboardData(form);
+  setDashboardData(form);
+  setView("dashboard");
   };
 
   // Ensure these handlers are defined in the Home component:
@@ -762,7 +765,9 @@ export default function Home() {
       >
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: 1600, mx: 'auto', width: '100%' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 2 } }}>
-            <img src="/logo.png" alt="Finance Sage Logo"
+            <img
+              src="/logo.png"
+              alt="Finance Sage Logo"
               style={{
                 width: 48,
                 height: 48,
@@ -783,27 +788,58 @@ export default function Home() {
               </Typography>
             </Box>
           </Box>
-          <Chip 
-            label="India" 
-            icon={<AccountBalance />} 
-            sx={{ 
-              bgcolor: 'rgba(255,255,255,0.2)', 
-              color: 'white',
-              '& .MuiChip-icon': { color: 'white' },
-              fontSize: { xs: '0.8rem', sm: '1rem' },
-              px: { xs: 1, sm: 2 },
-              height: { xs: 32, sm: 40 },
-            }} 
-          />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1.5, sm: 2.5 } }}>
+            {dashboardData && (
+              <Button
+                variant={view === "dashboard" ? "contained" : "outlined"}
+                color="inherit"
+                size="small"
+                onClick={() => setView("dashboard")}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  borderColor: 'rgba(255,255,255,0.6)',
+                  bgcolor: view === "dashboard" ? 'rgba(0,0,0,0.15)' : 'transparent',
+                  '&:hover': {
+                    bgcolor: 'rgba(0,0,0,0.2)',
+                    borderColor: 'rgba(255,255,255,0.9)',
+                  },
+                }}
+              >
+                My Dashboard
+              </Button>
+            )}
+            <Chip 
+              label="India" 
+              icon={<AccountBalance />} 
+              sx={{ 
+                bgcolor: 'rgba(255,255,255,0.2)', 
+                color: 'white',
+                '& .MuiChip-icon': { color: 'white' },
+                fontSize: { xs: '0.8rem', sm: '1rem' },
+                px: { xs: 1, sm: 2 },
+                height: { xs: 32, sm: 40 },
+              }} 
+            />
+          </Box>
         </Box>
       </Paper>
 
       <Container maxWidth="lg">
-      {dashboardData ? (
-        showQuiz ? (
+        {view === "dashboard" && dashboardData && (
+          <Dashboard
+            data={dashboardData}
+            totalEMI={totalEMI}
+            onBack={() => { setView("form"); setStep(0 as Step); }}
+            onRecommend={() => setView("riskQuiz")}
+            recommendation={recommendation}
+            loadingRecommendation={loadingRecommendation}
+          />
+        )}
+        {view === "riskQuiz" && dashboardData && (
           <RiskQuiz
             data={dashboardData}
-            onBack={() => setShowQuiz(false)}
+            onBack={() => setView("dashboard")}
             onQuizComplete={async (quizResult) => {
               setQuizData(quizResult);
               setLoadingRecommendation(true);
@@ -836,21 +872,12 @@ export default function Home() {
                 });
               } finally {
                 setLoadingRecommendation(false);
-                setShowQuiz(false);
+                setView("dashboard");
               }
             }}
           />
-        ) : (
-          <Dashboard
-            data={dashboardData}
-              totalEMI={totalEMI}
-            onBack={() => { setDashboardData(null); setStep(0); setRecommendation(null); }}
-            onRecommend={() => setShowQuiz(true)}
-            recommendation={recommendation}
-            loadingRecommendation={loadingRecommendation}
-          />
-        )
-      ) : (
+        )}
+        {view === "form" && (
           <Box sx={{ maxWidth: 800, mx: 'auto' }}>
             {/* Step Indicator */}
             <Paper elevation={0} sx={{ p: 3, mb: 4, borderRadius: 3 }}>
