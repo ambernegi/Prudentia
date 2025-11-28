@@ -243,7 +243,7 @@ function calculateCorpus({ monthlyInvestment, years, rate }: { monthlyInvestment
   return monthlyInvestment * (((Math.pow(1 + r, n) - 1) / r) * (1 + r));
 }
 
-// Create a custom theme with Inter as the default font for body text
+// Create a custom theme with Inter as the default font and upgraded buttons
 const theme = createTheme({
   typography: {
     fontFamily: 'Inter, Arial, sans-serif',
@@ -255,6 +255,38 @@ const theme = createTheme({
     h6: { fontWeight: 700 },
     body1: { fontWeight: 400 },
     body2: { fontWeight: 400 },
+  },
+  components: {
+    MuiButton: {
+      defaultProps: {
+        disableElevation: true,
+      },
+      styleOverrides: {
+        root: {
+          borderRadius: 999,
+          textTransform: 'none',
+          fontWeight: 600,
+          paddingInline: 20,
+          paddingBlock: 10,
+        },
+        containedPrimary: {
+          background: 'linear-gradient(135deg, var(--primary), var(--primary-light))',
+          boxShadow: 'var(--shadow-light)',
+          '&:hover': {
+            background: 'linear-gradient(135deg, var(--primary-dark), var(--primary))',
+            boxShadow: 'var(--shadow-medium)',
+          },
+        },
+        outlinedPrimary: {
+          borderWidth: 2,
+          borderColor: 'var(--primary)',
+          '&:hover': {
+            borderColor: 'var(--primary-dark)',
+            backgroundColor: 'rgba(25,118,210,0.04)',
+          },
+        },
+      },
+    },
   },
 });
 
@@ -979,7 +1011,7 @@ export default function Home() {
                     <Box sx={{ flex: 1 }}>
                       <TextField
                         fullWidth
-                        label="Monthly Inhand Income (₹)"
+                        label="Monthly Inhand Income"
                         name="inhandIncome"
                         type="number"
                         value={form.income.inhandIncome}
@@ -1000,7 +1032,7 @@ export default function Home() {
                     <Box sx={{ flex: 1 }}>
                       <TextField
                         fullWidth
-                        label="Other Sources of Income (₹)"
+                        label="Other Sources of Income"
                         name="otherIncome"
                         type="number"
                         value={form.income.otherIncome}
