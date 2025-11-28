@@ -787,7 +787,7 @@ export default function Home() {
       <Box sx={{ minHeight: '100vh', background: 'var(--background-light)' }}>
       {/* Modern Header */}
       <Paper 
-        elevation={0} 
+        elevation={3} 
         sx={{ 
           background: 'linear-gradient(135deg, var(--primary), var(--primary-light))',
           color: 'white',
@@ -795,11 +795,9 @@ export default function Home() {
           mb: 4,
           borderRadius: 0,
           px: { xs: 2, sm: 4, md: 8 },
-          width: '100vw',
-          minWidth: 0,
-          left: 0,
-          position: 'relative',
+          width: '100%',
           boxSizing: 'border-box',
+          boxShadow: 'var(--shadow-medium)',
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: 1600, mx: 'auto', width: '100%', flexWrap: 'wrap', rowGap: 2 }}>
@@ -1784,60 +1782,118 @@ function Dashboard({ data, totalEMI, onBack, onRecommend, recommendation, loadin
 
   return (
     <Box sx={{ maxWidth: 1200, mx: 'auto', p: { xs: 1, sm: 3 } }}>
-      {/* Modern Header */}
-      <Paper elevation={3} sx={{ p: { xs: 2, sm: 4 }, mb: 4, borderRadius: 4, background: 'linear-gradient(135deg, #e0e0e0 0%, #bdbdbd 100%)', color: '#222', boxShadow: 'var(--shadow-medium)' }}>
-        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, justifyContent: 'space-between', mb: 2, gap: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-            <Avatar sx={{ bgcolor: '#757575', width: 64, height: 64, boxShadow: 2 }}>
+      {/* Dashboard Hero */}
+      <Paper
+        elevation={3}
+        sx={{
+          p: { xs: 2.5, sm: 4 },
+          mb: 4,
+          borderRadius: 4,
+          background: 'linear-gradient(135deg, rgba(25,118,210,0.08), rgba(25,118,210,0.02))',
+          border: '1px solid var(--border-light)',
+          boxShadow: 'var(--shadow-medium)',
+        }}
+      >
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: { xs: 'column', md: 'row' },
+            alignItems: { xs: 'flex-start', md: 'center' },
+            justifyContent: 'space-between',
+            gap: 3,
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
+            <Avatar sx={{ bgcolor: 'var(--primary)', width: 64, height: 64, boxShadow: 2 }}>
               <TrendingUp fontSize="large" />
             </Avatar>
             <Box>
-              <Typography variant="h4" sx={{ fontWeight: 800, mb: 0.5, letterSpacing: '-1px', fontSize: { xs: '1.5rem', sm: '2.2rem' }, color: '#222' }}>
-                Your Dashboard
+              <Typography
+                variant="h4"
+                sx={{
+                  fontWeight: 800,
+                  mb: 0.5,
+                  letterSpacing: '-1px',
+                  fontSize: { xs: '1.5rem', sm: '2.1rem' },
+                }}
+              >
+                Your Financial Dashboard
               </Typography>
-              <Typography variant="body1" sx={{ opacity: 0.92, fontSize: { xs: '1rem', sm: '1.15rem' } }}>
-                Your personalized financial overview and insights
+              <Typography
+                variant="body1"
+                sx={{ opacity: 0.9, fontSize: { xs: '0.95rem', sm: '1.05rem' }, mb: 1.5 }}
+              >
+                Snapshot of your income, debt, savings and investments based on the data you provided.
               </Typography>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                <Chip
+                  label={`Persona: ${persona.code}`}
+                  size="small"
+                  sx={{ bgcolor: 'rgba(25,118,210,0.12)', color: '#0d47a1' }}
+                />
+                <Chip
+                  label={`Savings rate: ${savingsRate.toFixed(1)}%`}
+                  size="small"
+                  sx={{ bgcolor: 'rgba(67,160,71,0.12)', color: '#1b5e20' }}
+                />
+                <Chip
+                  label={`DTI: ${dti}`}
+                  size="small"
+                  sx={{ bgcolor: 'rgba(255,143,0,0.12)', color: '#e65100' }}
+                />
+              </Box>
             </Box>
           </Box>
-          {recommendation && recommendation.persona && (
-            <Box sx={{ textAlign: { xs: 'left', sm: 'right' }, mt: { xs: 2, sm: 0 } }}>
-              <Typography variant="overline" sx={{ display: 'block', color: '#424242' }}>
-                Persona
-              </Typography>
-              <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                {recommendation.persona}
-              </Typography>
-            </Box>
-          )}
-          <Button
-            variant="outlined"
-            startIcon={<ArrowBack />}
-            onClick={onBack}
-            sx={{ 
-              color: '#333', 
-              borderColor: '#bdbdbd',
-              fontWeight: 600,
-              fontSize: { xs: '0.95rem', sm: '1.1rem' },
-              borderRadius: 2,
-              px: 3,
-              py: 1.2,
-              bgcolor: '#f5f5f5',
-              '&:hover': { borderColor: '#757575', bgcolor: '#e0e0e0' }
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: { xs: 'flex-start', md: 'flex-end' },
+              gap: 1.5,
+              mt: { xs: 1.5, md: 0 },
+              minWidth: { md: 240 },
             }}
           >
-            Back to Form
-          </Button>
+            <Typography variant="subtitle2" sx={{ color: '#444' }}>
+              Est. true net worth
+            </Typography>
+            <Typography
+              variant="h5"
+              sx={{ fontWeight: 700, letterSpacing: '-0.5px', mb: 0.5 }}
+            >
+              {formatCurrency(trueNetWorth)}
+            </Typography>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              Includes current investments, annualised savings and total debt.
+            </Typography>
+            <Button
+              variant="outlined"
+              startIcon={<ArrowBack />}
+              onClick={onBack}
+              sx={{
+                mt: 1,
+                color: '#333',
+                borderColor: '#bdbdbd',
+                fontWeight: 600,
+                fontSize: { xs: '0.9rem', sm: '1rem' },
+                borderRadius: 2,
+                px: 3,
+                py: 1.1,
+                bgcolor: '#fafafa',
+                '&:hover': { borderColor: '#757575', bgcolor: '#e0e0e0' },
+              }}
+            >
+              Back to Form
+            </Button>
+          </Box>
         </Box>
-        <Divider sx={{ borderColor: '#bdbdbd', my: 2 }} />
-        <Typography variant="body2" sx={{ opacity: 0.85, fontSize: { xs: '0.98rem', sm: '1.08rem' }, fontWeight: 400, color: '#444' }}>
-          Welcome! Here's a snapshot of your financial health, investments, and opportunities. Use the insights below to make informed decisions and track your progress.
-        </Typography>
       </Paper>
 
-      {/* Key Metrics */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(auto-fit, minmax(260px, 1fr))' }, gap: 4, mb: 4 }}>
-        {[
+      {/* Key Metrics + Strategy Plan */}
+      <Grid container spacing={4} sx={{ mb: 4 }}>
+        <Grid item xs={12} md={7}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(auto-fit, minmax(260px, 1fr))' }, gap: 3 }}>
+            {[
           {
             icon: <AttachMoney />,
             label: 'Monthly Income',
@@ -1880,99 +1936,140 @@ function Dashboard({ data, totalEMI, onBack, onRecommend, recommendation, loadin
             color: '#0288d1',
             sub: ''
           }
-        ].map((card, i) => (
-          <Card
-            key={card.label}
-            elevation={0}
-            sx={{
-              p: 3,
-              borderRadius: 5,
-              boxShadow: '0 4px 24px rgba(120,120,120,0.08)',
-              background: '#f5f5f5',
-              border: '1px solid #e0e0e0',
-              transition: 'transform 0.18s, box-shadow 0.18s, background 0.18s, color 0.18s',
-              color: '#222',
-              '&:hover': {
-                transform: 'translateY(-4px) scale(1.02)',
-                boxShadow: '0 8px 32px rgba(120,120,120,0.13)',
-                background: card.color,
-                borderColor: card.color,
-                color: '#fff',
-                '& .MuiAvatar-root': {
-                  bgcolor: '#fff',
-                  color: card.color,
-                },
-                '& .MuiTypography-h6': {
-                  color: '#fff',
-                },
-                '& .MuiTypography-h4': {
-                  color: '#fff',
-                },
-                '& .MuiTypography-body2': {
-                  color: '#f3f3f3',
-                },
-              },
-              display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
-              minHeight: 160
-            }}
-          >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-              <Avatar sx={{ bgcolor: '#bdbdbd', width: 44, height: 44, color: '#333', transition: 'background 0.18s, color 0.18s' }}>{card.icon}</Avatar>
-              <Typography variant="h6" sx={{ fontWeight: 700, color: '#333', transition: 'color 0.18s' }}>{card.label}</Typography>
-            </Box>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: '#222', mb: 1, letterSpacing: '-1px', transition: 'color 0.18s' }}>{card.value}</Typography>
-            {card.sub && <Typography variant="body2" sx={{ color: '#555', transition: 'color 0.18s' }}>{card.sub}</Typography>}
-          </Card>
-        ))}
-      </Box>
-
-      {/* Strategy Plan (only after risk quiz / persona is available) */}
-      {strategyPlan ? (
-        <Card elevation={0} sx={{ p: 4, borderRadius: 3, border: '1px solid var(--border-light)', mb: 4 }}>
-          <Typography variant="h5" sx={{ fontWeight: 600, mb: 1 }}>
-            {strategyPlan.name}
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-            Persona: {persona.code} – {persona.label}
-          </Typography>
-          <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-            {strategyPlan.headline}
-          </Typography>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(auto-fit, minmax(260px, 1fr))' }, gap: 3 }}>
-            {strategyPlan.phases.map((phase, idx) => (
-              <Box key={idx} sx={{ p: 2.5, bgcolor: 'var(--background-light)', borderRadius: 2, border: '1px solid var(--border-light)' }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
-                  {phase.title}
+            ].map((card) => (
+              <Card
+                key={card.label}
+                elevation={0}
+                sx={{
+                  p: 3,
+                  borderRadius: 5,
+                  boxShadow: '0 4px 24px rgba(120,120,120,0.08)',
+                  background: '#f5f5f5',
+                  border: '1px solid #e0e0e0',
+                  transition: 'transform 0.18s, box-shadow 0.18s, background 0.18s, color 0.18s',
+                  color: '#222',
+                  '&:hover': {
+                    transform: 'translateY(-4px) scale(1.02)',
+                    boxShadow: '0 8px 32px rgba(120,120,120,0.13)',
+                    background: card.color,
+                    borderColor: card.color,
+                    color: '#fff',
+                    '& .MuiAvatar-root': {
+                      bgcolor: '#fff',
+                      color: card.color,
+                    },
+                    '& .MuiTypography-h6': {
+                      color: '#fff',
+                    },
+                    '& .MuiTypography-h4': {
+                      color: '#fff',
+                    },
+                    '& .MuiTypography-body2': {
+                      color: '#f3f3f3',
+                    },
+                  },
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                  minHeight: 160,
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                  <Avatar
+                    sx={{
+                      bgcolor: '#bdbdbd',
+                      width: 44,
+                      height: 44,
+                      color: '#333',
+                      transition: 'background 0.18s, color 0.18s',
+                    }}
+                  >
+                    {card.icon}
+                  </Avatar>
+                  <Typography
+                    variant="h6"
+                    sx={{ fontWeight: 700, color: '#333', transition: 'color 0.18s' }}
+                  >
+                    {card.label}
+                  </Typography>
+                </Box>
+                <Typography
+                  variant="h4"
+                  sx={{
+                    fontWeight: 800,
+                    color: '#222',
+                    mb: 1,
+                    letterSpacing: '-1px',
+                    transition: 'color 0.18s',
+                  }}
+                >
+                  {card.value}
                 </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-                  {phase.summary}
-                </Typography>
-                <ul style={{ paddingLeft: '1.2rem', margin: 0 }}>
-                  {phase.bullets.map((b, i) => (
-                    <li key={i} style={{ marginBottom: '0.35rem', fontSize: '0.9rem' }}>
-                      {b}
-                    </li>
-                  ))}
-                </ul>
-              </Box>
+                {card.sub && (
+                  <Typography variant="body2" sx={{ color: '#555', transition: 'color 0.18s' }}>
+                    {card.sub}
+                  </Typography>
+                )}
+              </Card>
             ))}
           </Box>
-        </Card>
-      ) : (
-        <Card elevation={0} sx={{ p: 4, borderRadius: 3, border: '1px solid var(--border-light)', mb: 4 }}>
-          <Typography variant="h5" sx={{ fontWeight: 600, mb: 1 }}>
-            Complete Your Risk Profile
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Take the Risk Profile Assessment to generate your persona and a personalised three‑phase strategy plan.
-          </Typography>
-          <Box sx={{ mt: 3 }}>
-            <Button variant="contained" startIcon={<Security />} onClick={onRecommend}>
-              Start Risk Profile Assessment
-            </Button>
-          </Box>
-        </Card>
-      )}
+        </Grid>
+        <Grid item xs={12} md={5}>
+          {strategyPlan ? (
+            <Card
+              elevation={0}
+              sx={{ p: 3, borderRadius: 3, border: '1px solid var(--border-light)', height: '100%' }}
+            >
+              <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
+                {strategyPlan.name}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                Persona: {persona.code} – {persona.label}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                {strategyPlan.headline}
+              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                {strategyPlan.phases.map((phase, idx) => (
+                  <Box
+                    key={idx}
+                    sx={{
+                      p: 1.5,
+                      bgcolor: 'var(--background-light)',
+                      borderRadius: 2,
+                      border: '1px solid var(--border-light)',
+                    }}
+                  >
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                      {phase.title}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                      {phase.summary}
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
+            </Card>
+          ) : (
+            <Card
+              elevation={0}
+              sx={{ p: 3, borderRadius: 3, border: '1px solid var(--border-light)', height: '100%' }}
+            >
+              <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
+                Complete Your Risk Profile
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Take the Risk Profile Assessment to generate your persona and a personalised three‑phase strategy plan.
+              </Typography>
+              <Box sx={{ mt: 2 }}>
+                <Button variant="contained" startIcon={<Security />} onClick={onRecommend}>
+                  Start Risk Profile Assessment
+                </Button>
+              </Box>
+            </Card>
+          )}
+        </Grid>
+      </Grid>
 
       {/* Investment Breakdown */}
       <Card elevation={0} sx={{ p: 4, borderRadius: 3, border: '1px solid var(--border-light)', mb: 4 }}>
