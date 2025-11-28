@@ -1,36 +1,91 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## Finance Sage – Overview
 
-## Getting Started
+Finance Sage is a Next.js app that guides Indian investors from raw financial data (income, expenses, debt, investments) to a clear **persona‑driven financial plan**.
 
-First, run the development server:
+The main entry point is `app/page.tsx`, which contains:
+
+- A multi‑step intake flow (income, debt, expenses, investments, SIPs)
+- A dashboard that computes key metrics (DTI, net worth, savings rate, asset mix)
+- A **risk & behaviour quiz** that feeds into a persona engine and strategy planner
+
+Run the dev server with:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Then open `http://localhost:3000` in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Risk Quiz & Persona Model
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The risk / behaviour quiz lives in `app/page.tsx` as the `RiskQuiz` component.  
+It asks a **minimal, high‑signal set of questions** and returns a structured result:
 
-## Learn More
+- **Age / life stage** (`ageGroup`)
+- **Self‑rated knowledge** + **products used** → `knowledge` (`Minimal | Moderate | Advanced`)
+- **Goal, horizon, volatility comfort** → `behaviour` (`Cautious | Moderate | Aggressive`)
+- **Reaction to a 20% drawdown** → `reaction` (`Sell | Hold | Buy More | Unsure | Sell/Unsure`)
 
-To learn more about Next.js, take a look at the following resources:
+These are wrapped in:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `QuizPersonaSummary` (ageGroup, knowledge, behaviour, reaction)
+- `QuizResult` (the summary + raw quiz answers)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+`QuizResult` is passed back to `Home` and then into the `Dashboard` component as `quizResult`.  
+The dashboard also calculates **DTI buckets** from actual numbers:
 
-## Deploy on Vercel
+- `<36%`, `36–43%`, `43–50%`, `≥50%`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The persona engine in `utils/persona.ts` exposes:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `getUserPersona(input: PersonaInput): PersonaResult`
+
+Where `PersonaInput` includes:
+
+- `ageGroup`
+- `dti`
+- `knowledge`
+- `behaviour`
+- `reaction`
+
+The dashboard combines **quiz‑derived behaviour** and **dashboard‑derived DTI/income/loans** to produce a final persona.
+
+## Strategy Plan Generation
+
+Inside the `Dashboard` function in `app/page.tsx`, we take:
+
+- Persona inputs (ageGroup, dti, knowledge, behaviour, reaction)
+- Core metrics from the dashboard:
+  - `totalIncome`, `totalMonthlyExpenses`, `monthlySavings`, `savingsRate`
+  - `totalDebt`, `totalInvestments`
+
+and build a **three‑phase strategy plan** via `buildStrategyPlan()`:
+
+- **Foundation Builder Plan**
+  - Triggered when knowledge is minimal, DTI is high, or savings are low/negative
+  - Focus: stabilise cash flow, reduce high‑cost debt, and start simple low‑volatility investing
+- **Disciplined Accumulator Plan**
+  - Default for moderate knowledge, moderate DTI, and reasonable savings rate
+  - Focus: emergency buffer, goal‑aligned SIPs, steady periodic reviews
+- **Confident Optimizer Plan**
+  - Triggered when knowledge is advanced, DTI is low, and savings rate is strong
+  - Focus: diversification (including international), tax efficiency, and controlled “satellite” risk
+
+Each plan has:
+
+- A `name` and `headline`
+- Three **phases**, each with:
+  - `title`
+  - `summary`
+  - Concrete bullet‑point actions (often parameterised by the user’s actual savings rate and monthly surplus)
+
+This `strategyPlan` is rendered in the dashboard as a **“Strategy Plan”** card with three columns (one per phase).
+
+## Extending the Model
+
+- To adjust persona logic, edit `utils/persona.ts` and/or the mapping inside `RiskQuiz`.
+- To tweak strategy thresholds (e.g. what counts as “high” DTI or “strong” savings), edit `buildStrategyPlan` in `app/page.tsx`.
+- To add more nuanced personas, you can:
+  - Introduce additional quiz questions
+  - Map more granular reactions into the existing `Reaction` union
+  - Add more rows to the `getUserPersona` decision table.

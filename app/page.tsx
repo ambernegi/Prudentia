@@ -141,6 +141,18 @@ type Step = 0 | 1 | 2 | 3 | 4 | 5;
 
 type ViewMode = "form" | "dashboard" | "riskQuiz";
 
+interface QuizPersonaSummary {
+  ageGroup: string;
+  knowledge: KnowledgeLevel;
+  behaviour: Behaviour;
+  reaction: Reaction;
+}
+
+interface QuizResult {
+  rawAnswers: any;
+  personaSummary: QuizPersonaSummary;
+}
+
 // Pie chart helper
 function PieChart({ data }: { data: { label: string; value: number; color: string }[] }) {
   const total = data.reduce((sum, d) => sum + d.value, 0);
@@ -261,7 +273,7 @@ export default function Home() {
     strategies?: any;
   }>(null);
   const [loadingRecommendation, setLoadingRecommendation] = useState(false);
-  const [quizData, setQuizData] = useState<{ ageGroup: string; answers: string[] } | null>(null);
+  const [quizData, setQuizData] = useState<QuizResult | null>(null);
   // Add state for mutual fund list
   const [mfList, setMfList] = useState<{schemeCode: string, schemeName: string}[]>([]);
   const [mfLoading, setMfLoading] = useState(false);
@@ -834,20 +846,21 @@ export default function Home() {
             onRecommend={() => setView("riskQuiz")}
             recommendation={recommendation}
             loadingRecommendation={loadingRecommendation}
+            quizResult={quizData}
           />
         )}
         {view === "riskQuiz" && dashboardData && (
           <RiskQuiz
             data={dashboardData}
             onBack={() => setView("dashboard")}
-            onQuizComplete={async (quizResult) => {
+            onQuizComplete={async (quizResult: QuizResult) => {
               setQuizData(quizResult);
               setLoadingRecommendation(true);
               try {
                 const res = await fetch("/api/finance", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ ...dashboardData, riskQuiz: quizResult }),
+                  body: JSON.stringify({ ...dashboardData, riskQuiz: quizResult.rawAnswers }),
                 });
                 let data: any;
                 try {
@@ -1497,7 +1510,7 @@ export default function Home() {
 }
 
 // Dashboard component
-function Dashboard({ data, totalEMI, onBack, onRecommend, recommendation, loadingRecommendation }: {
+function Dashboard({ data, totalEMI, onBack, onRecommend, recommendation, loadingRecommendation, quizResult }: {
   data: FormData;
   totalEMI: number;
   onBack: () => void;
@@ -1510,6 +1523,7 @@ function Dashboard({ data, totalEMI, onBack, onRecommend, recommendation, loadin
     strategies?: any;
   } | null;
   loadingRecommendation?: boolean;
+  quizResult?: QuizResult | null;
 }) {
   const totalIncome = Number(data.income.inhandIncome) + Number(data.income.otherIncome);
   const totalInvestments = Number(data.investments.gold) + Number(data.investments.realEstate) + 
@@ -1559,34 +1573,20 @@ function Dashboard({ data, totalEMI, onBack, onRecommend, recommendation, loadin
   else if (dtiRatio < 0.5) dti = '43–50%';
   else dti = '≥50%';
 
-  // Extract knowledge, behaviour, reaction from answers (example mapping, adjust as needed)
-  // For demo, fallback to Moderate if not available
+  // Extract knowledge, behaviour, reaction, and ageGroup from quiz result when available.
+  // Fallback to generic defaults if quiz has not been completed.
   let knowledge: KnowledgeLevel = 'Moderate';
   let behaviour: Behaviour = 'Moderate';
   let reaction: Reaction = 'Hold';
-  if (data.risk && data.risk.knowledge) {
-    if (data.risk.knowledge.toLowerCase().includes('minimal') || data.risk.knowledge.toLowerCase().includes('low')) knowledge = 'Minimal';
-    else if (data.risk.knowledge.toLowerCase().includes('advanced') || data.risk.knowledge.toLowerCase().includes('high')) knowledge = 'Advanced';
-    else knowledge = 'Moderate';
-  }
-  // For behaviour and reaction, you may want to map from quiz answers (customize as needed)
-  // For now, use risk appetite for behaviour
-  if (data.risk && data.risk.appetite) {
-    if (data.risk.appetite.toLowerCase().includes('conservative') || data.risk.appetite.toLowerCase().includes('cautious')) behaviour = 'Cautious';
-    else if (data.risk.appetite.toLowerCase().includes('aggressive')) behaviour = 'Aggressive';
-    else behaviour = 'Moderate';
-  }
-  // For reaction, you may want to use a market downturn question from the quiz
-  // For now, fallback to 'Hold'
-
-  // Try to extract ageGroup from risk quiz answers or fallback to ''
   let ageGroup = '';
-  // Try to extract from recommendation, risk, or fallback
-  if (recommendation && (recommendation as any).ageGroup) {
-    ageGroup = (recommendation as any).ageGroup;
-  } else if (data.risk && (data.risk as any).ageGroup) {
-    ageGroup = (data.risk as any).ageGroup;
+
+  if (quizResult?.personaSummary) {
+    knowledge = quizResult.personaSummary.knowledge;
+    behaviour = quizResult.personaSummary.behaviour;
+    reaction = quizResult.personaSummary.reaction;
+    ageGroup = quizResult.personaSummary.ageGroup;
   }
+
   const persona = getUserPersona({
     ageGroup,
     dti,
@@ -1595,18 +1595,138 @@ function Dashboard({ data, totalEMI, onBack, onRecommend, recommendation, loadin
     reaction
   });
 
-  // Risk Assessment Flow Section
-  const [riskAssessmentDone, setRiskAssessmentDone] = useState(false);
-  const [goalsFlowActive, setGoalsFlowActive] = useState(false);
-
-  const startRiskAssessment = () => {
-    setRiskAssessmentDone(false);
-    setGoalsFlowActive(false);
+  type StrategyPhase = {
+    title: string;
+    summary: string;
+    bullets: string[];
   };
 
-  const startGoalsFlow = () => {
-    setGoalsFlowActive(true);
+  type StrategyPlan = {
+    name: string;
+    headline: string;
+    phases: StrategyPhase[];
   };
+
+  const buildStrategyPlan = (): StrategyPlan => {
+    const safeSavingsRate = savingsRate < 0 ? 0 : savingsRate;
+    const positiveMonthlySavings = Math.max(monthlySavings, 0);
+
+    const isHighDTI = dti === '43–50%' || dti === '≥50%';
+    const isLowKnowledge = knowledge === 'Minimal';
+    const isLowSavings = safeSavingsRate < 10 || monthlySavings <= 0;
+
+    const isStrongBalanceSheet = dti === '<36%' && safeSavingsRate >= 25 && totalDebt === 0;
+    const isAdvanced = knowledge === 'Advanced';
+
+    if (isLowKnowledge || isHighDTI || isLowSavings) {
+      return {
+        name: 'Foundation Builder Plan',
+        headline: 'Stabilize cash flow, control debt, and set up simple, low-stress investing.',
+        phases: [
+          {
+            title: 'Phase 1 – Fix your monthly cash flow',
+            summary: `Target a savings rate of at least 10–15% of income. You are currently at approximately ${safeSavingsRate.toFixed(1)}%.`,
+            bullets: [
+              `Your estimated monthly savings are ₹${positiveMonthlySavings.toLocaleString()} (after expenses and EMIs).`,
+              'List 2–3 expense heads that can be trimmed by 5–10% each to free up surplus.',
+              'Pause non-essential lump-sum investments until your monthly surplus is consistently positive.'
+            ]
+          },
+          {
+            title: 'Phase 2 – Prioritise debt reduction',
+            summary: 'Use any positive surplus to aggressively pay down the highest cost loans.',
+            bullets: [
+              'Order your loans by interest rate and focus extra EMIs on the costliest one first.',
+              'Aim to reduce DTI into the <36% band over the next 12–24 months.',
+              'Avoid new discretionary EMIs (gadgets, vehicles) until DTI is in a healthy range.'
+            ]
+          },
+          {
+            title: 'Phase 3 – Start simple, low-volatility investing',
+            summary: 'Once cash flow is positive and debt is under control, start with simple products.',
+            bullets: [
+              'Build 3–6 months of expenses in a combination of savings + liquid / ultra-short-term funds.',
+              'Start a small monthly SIP (even ₹2,000–5,000) into a conservative / balanced fund.',
+              'Increase SIPs automatically each year with salary hikes instead of lifestyle upgrades.'
+            ]
+          }
+        ]
+      };
+    }
+
+    if (isAdvanced && isStrongBalanceSheet) {
+      return {
+        name: 'Confident Optimizer Plan',
+        headline: 'Use your strong surplus and low leverage to optimize growth and diversification.',
+        phases: [
+          {
+            title: 'Phase 1 – Lock in safety and liquidity',
+            summary: 'Before chasing returns, guarantee that emergencies and near-term goals are fully covered.',
+            bullets: [
+              'Keep 6–12 months of expenses in cash + high quality debt / liquid funds.',
+              'Ring‑fence money needed in the next 3 years into low-volatility instruments (FDs, short-duration debt).',
+              'Ensure adequate health and term insurance so investments are not derailed by shocks.'
+            ]
+          },
+          {
+            title: 'Phase 2 – Core growth portfolio',
+            summary: 'Allocate most of your long-term surplus into diversified equity and index funds.',
+            bullets: [
+              'Target a high equity allocation (often 70–80% of long-term corpus) spread across index, flexi-cap and international funds.',
+              'Use your existing SIPs as the core engine; add or rebalance instead of constantly adding new funds.',
+              'Set a calendar reminder to review and rebalance annually back to the target allocation.'
+            ]
+          },
+          {
+            title: 'Phase 3 – Fine-tune for tax and opportunities',
+            summary: 'With basics covered, focus on after‑tax returns and selective opportunities.',
+            bullets: [
+              'Prefer tax-efficient equity / debt funds over taxable FDs where risk profile allows.',
+              'Consider adding a modest allocation to international or factor/index strategies to diversify country and style risk.',
+              'Limit any speculative or alternative assets (crypto, single stocks, etc.) to a small “satellite” bucket (for example, <=10% of your total portfolio).'
+            ]
+          }
+        ]
+      };
+    }
+
+    // Disciplined Accumulator – default for moderate knowledge and reasonable savings.
+    return {
+      name: 'Disciplined Accumulator Plan',
+      headline: 'Turn your existing surplus into a structured, goal-based investment engine.',
+      phases: [
+        {
+          title: 'Phase 1 – Strengthen your buffer',
+          summary: 'Make sure you can handle surprises without breaking your investment plan.',
+          bullets: [
+            'Build and maintain 3–6 months of expenses in low‑risk, liquid instruments.',
+            'If DTI is between 36–43%, channel some surplus to prepay the highest‑rate loans.',
+            'Keep at least one month of EMIs and expenses as pure cash in the bank.'
+          ]
+        },
+        {
+          title: 'Phase 2 – Align SIPs with your goals',
+          summary: 'Map each major goal (home, retirement, education) to a time horizon and risk level.',
+          bullets: [
+            'For long‑term goals (7+ years), lean more on equity mutual funds / index funds.',
+            'For 3–7 year goals, blend equity and high‑quality debt or conservative hybrid funds.',
+            'Ensure your total monthly SIPs add up to a healthy share of income (for example, 20–30%).'
+          ]
+        },
+        {
+          title: 'Phase 3 – Review, don’t react',
+          summary: 'Use rules and periodic reviews instead of reacting to every market move.',
+          bullets: [
+            'Review your portfolio annually; rebalance only when allocations drift significantly.',
+            'If markets fall 20% and your plan is long‑term, use it as a chance to top up rather than exit.',
+            'Upgrade your SIP amounts in line with income growth to accelerate compounding.'
+          ]
+        }
+      ]
+    };
+  };
+
+  const strategyPlan = buildStrategyPlan();
 
   return (
     <Box sx={{ maxWidth: 1200, mx: 'auto', p: { xs: 1, sm: 3 } }}>
@@ -1752,6 +1872,35 @@ function Dashboard({ data, totalEMI, onBack, onRecommend, recommendation, loadin
         ))}
       </Box>
 
+      {/* Strategy Plan */}
+      <Card elevation={0} sx={{ p: 4, borderRadius: 3, border: '1px solid var(--border-light)', mb: 4 }}>
+        <Typography variant="h5" sx={{ fontWeight: 600, mb: 1 }}>
+          {strategyPlan.name}
+        </Typography>
+        <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+          {strategyPlan.headline}
+        </Typography>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(auto-fit, minmax(260px, 1fr))' }, gap: 3 }}>
+          {strategyPlan.phases.map((phase, idx) => (
+            <Box key={idx} sx={{ p: 2.5, bgcolor: 'var(--background-light)', borderRadius: 2, border: '1px solid var(--border-light)' }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+                {phase.title}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                {phase.summary}
+              </Typography>
+              <ul style={{ paddingLeft: '1.2rem', margin: 0 }}>
+                {phase.bullets.map((b, i) => (
+                  <li key={i} style={{ marginBottom: '0.35rem', fontSize: '0.9rem' }}>
+                    {b}
+                  </li>
+                ))}
+              </ul>
+            </Box>
+          ))}
+        </Box>
+      </Card>
+
       {/* Investment Breakdown */}
       <Card elevation={0} sx={{ p: 4, borderRadius: 3, border: '1px solid var(--border-light)', mb: 4 }}>
         <Typography variant="h5" sx={{ fontWeight: 600, mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -1856,128 +2005,19 @@ function Dashboard({ data, totalEMI, onBack, onRecommend, recommendation, loadin
         </Card>
       )}
 
-      {/* Strategy recommendations from risk assessment */}
+      {/* Backend-generated strategy recommendations from the risk quiz (if available) */}
       {recommendation && (
         <Card elevation={0} sx={{ p: 4, borderRadius: 3, border: '1px solid var(--border-light)', mb: 4 }}>
           <Typography variant="h5" sx={{ fontWeight: 600, mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
             <Assessment />
-            Strategy Recommendations
+            Additional Strategy Insights
           </Typography>
           <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
-            Based on your risk assessment, here are tailored investment strategy ideas.
+            These insights come from the backend model and complement the on‑screen strategy plan.
           </Typography>
-          <Box sx={{ mb: 2 }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
-              Model Strategy
-            </Typography>
-            <Typography variant="body2" sx={{ color: '#424242', whiteSpace: 'pre-line' }}>
-              {recommendation.recommendation}
-            </Typography>
-          </Box>
-          {recommendation.strategies?.primary && (
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
-                Primary Strategy: {recommendation.strategies.primary.title}
-              </Typography>
-              {recommendation.strategies.primary.targetAllocation && (
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.2, mb: 1.5 }}>
-                  {Object.entries(recommendation.strategies.primary.targetAllocation).map(
-                    ([k, v]: [string, any]) => (
-                      <Chip
-                        key={k}
-                        label={`${k}: ${v}%`}
-                        size="small"
-                        sx={{
-                          bgcolor: 'rgba(25,118,210,0.08)',
-                          borderRadius: 2,
-                          fontSize: 12,
-                        }}
-                      />
-                    )
-                  )}
-                </Box>
-              )}
-              {recommendation.strategies.primary.instruments && (
-                <Box sx={{ mb: 1.5 }}>
-                  <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', mb: 0.5 }}>
-                    Suggested instruments
-                  </Typography>
-                  <ul style={{ margin: 0, paddingLeft: 18 }}>
-                    {recommendation.strategies.primary.instruments.map((inst: string) => (
-                      <li key={inst} style={{ fontSize: 13, marginBottom: 2 }}>
-                        {inst}
-                      </li>
-                    ))}
-                  </ul>
-                </Box>
-              )}
-              {recommendation.strategies.primary.narrative && (
-                <Typography variant="body2" sx={{ color: '#424242', whiteSpace: 'pre-line' }}>
-                  {recommendation.strategies.primary.narrative}
-                </Typography>
-              )}
-            </Box>
-          )}
-          {recommendation.strategies?.implementationTips && (
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
-                Implementation Tips
-              </Typography>
-              <ul style={{ margin: 0, paddingLeft: 18 }}>
-                {recommendation.strategies.implementationTips.map((tip: string) => (
-                  <li key={tip} style={{ fontSize: 13, marginBottom: 2 }}>
-                    {tip}
-                  </li>
-                ))}
-              </ul>
-            </Box>
-          )}
-          {recommendation.comparison && (
-            <Box sx={{ mt: 1 }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
-                Portfolio Comparison
-              </Typography>
-              <Typography variant="body2" sx={{ color: '#424242', whiteSpace: 'pre-line' }}>
-                {recommendation.comparison}
-              </Typography>
-            </Box>
-          )}
-        </Card>
-      )}
-
-      {/* Show persona and allow to proceed to goals/finance only after risk assessment is done */}
-      {riskAssessmentDone && (
-        <Card elevation={0} sx={{ p: 4, borderRadius: 3, border: '1px solid var(--border-light)', mb: 4 }}>
-          <Typography variant="h5" sx={{ fontWeight: 600, mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Security />
-            Your Risk Profile
+          <Typography variant="body2" sx={{ color: '#424242', whiteSpace: 'pre-line' }}>
+            {recommendation.recommendation}
           </Typography>
-          {persona && (
-            <Box sx={{ mt: 2 }}>
-              <Typography variant="subtitle2" color="text.secondary">Persona Code: {persona.code}</Typography>
-              <Typography variant="body2" color="text.secondary">{persona.label}</Typography>
-              <Typography variant="body2" color="text.secondary">{persona.description}</Typography>
-            </Box>
-          )}
-          <Box sx={{ mt: 4, textAlign: 'center' }}>
-            <Button
-              variant="contained"
-              color="secondary"
-              size="large"
-              onClick={startGoalsFlow}
-            >
-              Proceed to Personal Goals & Finance
-            </Button>
-          </Box>
-        </Card>
-      )}
-      {/* Personal Goals & Finance Flow Section (hidden until risk assessment is done) */}
-      {riskAssessmentDone && goalsFlowActive && (
-        <Card elevation={0} sx={{ p: 4, borderRadius: 3, border: '1px solid var(--border-light)', mb: 4 }}>
-          <Typography variant="h5" sx={{ fontWeight: 600, mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
-            Personal Goals & Finance
-          </Typography>
-          {/* ...existing goals/finance questions and recommendations UI... */}
         </Card>
       )}
 
@@ -2093,12 +2133,11 @@ const branchOptions: Record<string, string[][]> = {
   ]
 };
 
-function RiskQuiz({ data, onBack, onQuizComplete }: { data: FormData; onBack: () => void; onQuizComplete: (quizResult: any) => void }) {
-  // New question arrays from previous step
-  const demographicsQuestions = [
+function RiskQuiz({ data, onBack, onQuizComplete }: { data: FormData; onBack: () => void; onQuizComplete: (quizResult: QuizResult) => void }) {
+  const questions = [
     {
       key: 'ageGroup',
-      label: 'Age Group',
+      label: 'Which best describes your age and life stage?',
       type: 'radio',
       options: [
         '18–25 years (Early Career)',
@@ -2107,208 +2146,85 @@ function RiskQuiz({ data, onBack, onQuizComplete }: { data: FormData; onBack: ()
         '51–65 years (Pre-Retirement)',
         'Over 65 years (Retiree or Late Stage)'
       ]
-    }
-  ];
-
-  const debtQuestions = [
+    },
     {
-      key: 'hasDebt',
-      label: 'Do you currently have any outstanding debt or loans?',
-      type: 'radio',
-      options: ['No', 'Yes']
-    }
-    // If Yes, show loan details as before
-  ];
-
-  const knowledgeLevels = [
-    'Minimal (Just starting, little experience)',
-    'Moderate (Comfortable with basics, some experience)',
-    'Advanced (Deep understanding; manage portfolio aggressively)'
-  ];
-
-  const minimalQuestions = [
-    'Do you understand what mutual funds are?',
-    'Have you ever invested in stocks or equity-related products?',
-    'Do you know what SIP (Systematic Investment Plan) means?',
-    'Are you aware of risks like market volatility, liquidity, and inflation?'
-  ];
-
-  const moderateQuestions = [
-    {
-      label: 'How do you typically select your investments?',
+      key: 'knowledgeSelf',
+      label: 'How would you rate your overall investment knowledge?',
       type: 'radio',
       options: [
-        'I rely on recommendations from friends/family.',
-        'I follow advice from online research or financial news.',
-        'I consult with a financial advisor.',
-        'I use robo-advisors or online investment platforms.',
-        'I make decisions independently, using my own research.'
+        'Minimal – I am just starting and need guidance',
+        'Moderate – I know the basics and invest occasionally',
+        'Advanced – I actively manage my own portfolio'
       ]
     },
     {
-      label: 'How often do you review your investment portfolio?',
-      type: 'radio',
-      options: [
-        'Rarely or only when prompted.',
-        'Once or twice a year.',
-        'Quarterly.',
-        'Monthly.',
-        'Weekly or more often.'
-      ]
-    },
-    {
-      label: 'How comfortable are you with asset allocation and diversification principles?',
-      type: 'radio',
-      options: [
-        'Not comfortable, I prefer to keep things simple.',
-        'Somewhat comfortable, but I prefer expert advice.',
-        'Comfortable, I apply these principles on my own.',
-        'Very comfortable, I actively review and adjust allocation.'
-      ]
-    },
-    {
-      label: 'Which types of investments have you used?',
+      key: 'products',
+      label: 'Which products are you comfortable using today? (Select all that apply)',
       type: 'checkbox',
       options: [
-        'Bank deposits, FDs, RDs',
-        'Mutual funds (equity, debt, hybrid)',
-        'Direct stocks/equities',
-        'Bonds',
-        'Gold / Precious metals',
+        'Bank deposits / FDs / RDs',
+        'Debt mutual funds',
+        'Equity mutual funds or index funds',
+        'Direct stocks / equities',
+        'Gold (physical or ETF)',
         'Real estate',
-        'Alternative investments (REITs, crypto, P2P lending, etc.)'
+        'International funds / global equities'
       ]
     },
     {
-      label: 'When markets are volatile, how do you typically react?',
+      key: 'objective',
+      label: 'What is your primary financial objective right now?',
       type: 'radio',
       options: [
-        'I get worried and consider selling my investments.',
-        'I wait and watch before making any decisions.',
-        'I usually hold my current investments.',
-        'I look for buying opportunities.'
-      ]
-    }
-  ];
-
-  const advancedQuestions = [
-    {
-      label: 'How do you manage your investment portfolio?',
-      type: 'radio',
-      options: [
-        'Entirely by myself (DIY approach).',
-        'With occasional help from professionals/consultants.',
-        'With regular input from a financial advisor or wealth manager.',
-        'Through automated/algorithmic platforms (e.g., robo-advisors).'
+        'Preserve wealth and avoid losses',
+        'Grow wealth aggressively over time',
+        'Generate regular income from my investments',
+        'Plan for retirement',
+        'Save for a big goal (home, education, etc.)'
       ]
     },
     {
-      label: 'Which advanced instruments have you invested in?',
-      type: 'checkbox',
+      key: 'horizon',
+      label: 'For your main goals, what is your typical investment time horizon?',
+      type: 'radio',
       options: [
-        'Derivatives (options, futures, swaps)',
-        'International equities, bonds, or funds',
-        'PMS/AIFs (portfolio management/alternative investment funds)',
-        'Startups (angel or VC investments)',
-        'Real estate investment trusts (REITs, INVITs)',
-        'Cryptocurrencies or digital assets',
-        'Structured products'
+        'Less than 3 years',
+        '3–7 years',
+        '7–15 years',
+        'More than 15 years'
       ]
     },
     {
-      label: 'How frequently do you rebalance your portfolio?',
+      key: 'drawdownReaction',
+      label: 'If your equity investments fell by 20% in a market downturn, what would you most likely do?',
       type: 'radio',
       options: [
-        'Rarely or never.',
-        'Only when my advisor suggests.',
-        'Once a year.',
-        'Every 6 months.',
-        'Quarterly or more frequently.'
+        'Sell most or all investments to avoid further loss',
+        'Sell a portion and wait for stability',
+        'Do nothing and stay invested',
+        'Invest more because prices are lower',
+        'I am not sure how I would react'
       ]
     },
     {
-      label: 'What is your primary consideration while making investment decisions?',
+      key: 'volatilityComfort',
+      label: 'How comfortable are you with short-term ups and downs if long-term returns are higher?',
       type: 'radio',
       options: [
-        'Maximizing returns, even with higher risk.',
-        'Managing risk and return equally.',
-        'Tax efficiency and long-term compounding.',
-        'Diversification across asset classes and geographies.',
-        'Sustainable/ESG investments.'
+        'Very uncomfortable – I lose sleep over losses',
+        'Somewhat uncomfortable – I can accept small swings',
+        'Comfortable – I can handle big swings for better returns'
       ]
     },
     {
-      label: 'How do you monitor investment performance?',
+      key: 'savingDiscipline',
+      label: 'How consistent are you with saving or investing every month?',
       type: 'radio',
       options: [
-        'Regular reports/statements from platforms or advisors.',
-        'Custom dashboards or spreadsheets.',
-        'Real-time tracking using mobile or desktop apps.',
-        'I rely on annual/semi-annual reviews only.'
-      ]
-    }
-  ];
-
-  const goalsQuestions = [
-    {
-      key: 'primaryObjective',
-      label: 'What is your primary financial objective?',
-      type: 'radio',
-      options: [
-        'Preserve Current Wealth (Stability, capital protection)',
-        'Grow Wealth (Aggressive appreciation)',
-        'Generate Income (Regular cashflow/dividends)',
-        'Retirement Planning',
-        'Funding Child\'s Education',
-        'Major Purchase (Home/Auto)',
-        'Other'
-      ],
-      other: true
-    },
-    {
-      key: 'timeHorizon',
-      label: 'What is your planned investment time horizon for major goals?',
-      type: 'radio',
-      options: [
-        'Less than 1 year (Short Term)',
-        '1–3 years (Short-Medium Term)',
-        '3–5 years (Medium Term)',
-        'More than 5 years (Long Term/Retirement)'
-      ]
-    },
-    {
-      key: 'savingsRate',
-      label: 'What portion of your monthly income do you consistently save or invest?',
-      type: 'radio',
-      options: [
-        'Less than 10%',
-        '10%–20%',
-        '20%–40%',
-        'Over 40%',
-        'It varies each month'
-      ]
-    },
-    {
-      key: 'marketDownturn',
-      label: 'Suppose your investment dropped by 20% in a market downturn. What would you most likely do?',
-      type: 'radio',
-      options: [
-        'Sell all investments to avoid further losses',
-        'Sell a portion, wait for stabilization',
-        'Do nothing, wait for recovery',
-        'Invest more while prices are lower',
-        'Unsure'
-      ]
-    },
-    {
-      key: 'investmentAttitude',
-      label: 'Which statement best describes your investment attitude?',
-      type: 'radio',
-      options: [
-        'I avoid risk and prefer guaranteed returns',
-        'I can accept modest risk for slightly higher returns',
-        'I am comfortable with significant risk for potentially higher returns',
-        'My risk preference changes based on market/news'
+        'I rarely save or invest',
+        'I try to save, but the amount varies a lot',
+        'I save a fixed amount most months',
+        'I save/invest first and spend the rest'
       ]
     }
   ];
@@ -2316,74 +2232,16 @@ function RiskQuiz({ data, onBack, onQuizComplete }: { data: FormData; onBack: ()
   // State for answers
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<any>({});
-  const [knowledgeLevel, setKnowledgeLevel] = useState('');
   const [error, setError] = useState('');
 
-  // Build the full question flow dynamically
-  let questionFlow: any[] = [
-    ...demographicsQuestions,
-    ...debtQuestions
-  ];
-  // Insert loan details if needed
-  if (answers.hasDebt === 'Yes') {
-    // For simplicity, ask for one loan at a time (could be extended)
-    questionFlow.push({
-      key: 'loanDetails',
-      label: 'Please provide details for your loan:',
-      type: 'loan',
-    });
-  }
-  // Knowledge level
-  questionFlow.push({
-    key: 'knowledgeLevel',
-    label: 'How would you assess your investment knowledge?',
-    type: 'radio',
-    options: knowledgeLevels
-  });
-  // Branching for knowledge
-  if (knowledgeLevel.startsWith('Minimal')) {
-    minimalQuestions.forEach((q, i) => {
-      questionFlow.push({
-        key: `minimal_${i}`,
-        label: q,
-        type: 'radio',
-        options: ['Yes', 'No']
-      });
-    });
-  } else if (knowledgeLevel.startsWith('Moderate')) {
-    moderateQuestions.forEach((q, i) => {
-      questionFlow.push({
-        key: `moderate_${i}`,
-        label: q.label,
-        type: q.type,
-        options: q.options
-      });
-    });
-  } else if (knowledgeLevel.startsWith('Advanced')) {
-    advancedQuestions.forEach((q, i) => {
-      questionFlow.push({
-        key: `advanced_${i}`,
-        label: q.label,
-        type: q.type,
-        options: q.options
-      });
-    });
-  }
-  // Goals and behavioral
-  questionFlow = questionFlow.concat(goalsQuestions);
+  const currentQ = questions[step];
 
-  // Render current question
-  const currentQ = questionFlow[step];
-
-  // Handlers
   const handleChange = (key: string, value: any) => {
     setAnswers((prev: any) => ({ ...prev, [key]: value }));
     setError('');
-    if (key === 'knowledgeLevel') setKnowledgeLevel(value);
   };
 
   const handleNext = () => {
-    // Validation
     if (currentQ.type === 'radio' && !answers[currentQ.key]) {
       setError('Please select an option.');
       return;
@@ -2392,15 +2250,76 @@ function RiskQuiz({ data, onBack, onQuizComplete }: { data: FormData; onBack: ()
       setError('Please select at least one option.');
       return;
     }
-    if (currentQ.type === 'loan' && (!answers.loanType || !answers.loanPrincipal || !answers.loanInterest || !answers.loanTenure)) {
-      setError('Please fill all loan details.');
-      return;
-    }
     setStep(step + 1);
   };
+
   const handleBack = () => setStep(Math.max(0, step - 1));
+
+  const derivePersonaSummary = (): QuizPersonaSummary => {
+    const ageGroup = answers.ageGroup || '';
+    const selfKnowledge: string = answers.knowledgeSelf || '';
+    const products: string[] = Array.isArray(answers.products) ? answers.products : [];
+    const objective: string = answers.objective || '';
+    const horizon: string = answers.horizon || '';
+    const drawdown: string = answers.drawdownReaction || '';
+    const vol: string = answers.volatilityComfort || '';
+
+    // Knowledge mapping
+    let knowledge: KnowledgeLevel = 'Moderate';
+    if (selfKnowledge.startsWith('Minimal')) knowledge = 'Minimal';
+    else if (selfKnowledge.startsWith('Advanced')) knowledge = 'Advanced';
+
+    const advancedProducts = ['Direct stocks / equities', 'International funds / global equities'];
+    const onlyDeposits = products.length > 0 && products.every(p => p.startsWith('Bank deposits'));
+
+    if (knowledge === 'Moderate' && products.some(p => advancedProducts.includes(p))) {
+      knowledge = 'Advanced';
+    }
+    if (knowledge === 'Advanced' && onlyDeposits) {
+      knowledge = 'Moderate';
+    }
+
+    // Behaviour mapping
+    let behaviour: Behaviour = 'Moderate';
+    const longHorizon = horizon.includes('7–15') || horizon.includes('More than 15');
+    const shortHorizon = horizon.includes('Less than 3');
+
+    if (objective.startsWith('Preserve') || objective.includes('regular income')) {
+      behaviour = 'Cautious';
+    } else if (objective.startsWith('Grow wealth') && longHorizon && vol.startsWith('Comfortable')) {
+      behaviour = 'Aggressive';
+    } else {
+      behaviour = 'Moderate';
+    }
+
+    if (shortHorizon && !objective.startsWith('Preserve')) {
+      // Short horizon should cap behaviour at Cautious or Moderate
+      behaviour = behaviour === 'Aggressive' ? 'Moderate' : behaviour;
+    }
+    if (vol.startsWith('Very uncomfortable')) {
+      behaviour = 'Cautious';
+    }
+
+    // Reaction mapping
+    let reaction: Reaction = 'Hold';
+    if (drawdown.startsWith('Sell most or all')) {
+      reaction = 'Sell';
+    } else if (drawdown.startsWith('Sell a portion')) {
+      reaction = 'Sell/Unsure';
+    } else if (drawdown.startsWith('Do nothing')) {
+      reaction = 'Hold';
+    } else if (drawdown.startsWith('Invest more')) {
+      reaction = 'Buy More';
+    } else {
+      reaction = 'Unsure';
+    }
+
+    return { ageGroup, knowledge, behaviour, reaction };
+  };
+
   const handleSubmit = () => {
-    onQuizComplete(answers);
+    const personaSummary = derivePersonaSummary();
+    onQuizComplete({ rawAnswers: answers, personaSummary });
   };
 
   // Render logic for each question type
@@ -2421,14 +2340,6 @@ function RiskQuiz({ data, onBack, onQuizComplete }: { data: FormData; onBack: ()
             /> {opt}
           </label>
         ))}
-        {currentQ.other && (
-          <TextField
-            label="Other (please specify)"
-            value={answers[`${currentQ.key}_other`] ?? ''}
-            onChange={e => handleChange(`${currentQ.key}_other`, e.target.value)}
-            sx={{ mt: 2 }}
-          />
-        )}
       </>
     );
   } else if (currentQ.type === 'checkbox') {
@@ -2455,24 +2366,6 @@ function RiskQuiz({ data, onBack, onQuizComplete }: { data: FormData; onBack: ()
             /> {opt}
           </label>
         ))}
-        {currentQ.other && (
-          <TextField
-            label="Other (please specify)"
-            value={answers[`${currentQ.key}_other`] ?? ''}
-            onChange={e => handleChange(`${currentQ.key}_other`, e.target.value)}
-            sx={{ mt: 2 }}
-          />
-        )}
-      </>
-    );
-  } else if (currentQ.type === 'loan') {
-    content = (
-      <>
-        <Typography variant="h6" sx={{ mb: 2 }}>{currentQ.label}</Typography>
-        <TextField label="Type of Loan" value={answers.loanType ?? ''} onChange={e => handleChange('loanType', e.target.value)} sx={{ mb: 2 }} fullWidth />
-        <TextField label="Outstanding Principal Amount (₹)" value={answers.loanPrincipal ?? ''} onChange={e => handleChange('loanPrincipal', e.target.value)} sx={{ mb: 2 }} fullWidth />
-        <TextField label="Interest Rate (% per annum)" value={answers.loanInterest ?? ''} onChange={e => handleChange('loanInterest', e.target.value)} sx={{ mb: 2 }} fullWidth />
-        <TextField label="Remaining Tenure (Months/Years)" value={answers.loanTenure ?? ''} onChange={e => handleChange('loanTenure', e.target.value)} sx={{ mb: 2 }} fullWidth />
       </>
     );
   }
@@ -2511,7 +2404,7 @@ function RiskQuiz({ data, onBack, onQuizComplete }: { data: FormData; onBack: ()
           >
             Back
           </Button>
-          {step < questionFlow.length - 1 ? (
+          {step < questions.length - 1 ? (
             <Button
               variant="contained"
               endIcon={<ArrowForward />}
