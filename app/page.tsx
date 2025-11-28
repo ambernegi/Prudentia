@@ -27,7 +27,6 @@ import {
   CircularProgress,
   IconButton,
   Tooltip,
-  Grid,
   Container,
   Stack,
   Avatar,
@@ -1890,8 +1889,15 @@ function Dashboard({ data, totalEMI, onBack, onRecommend, recommendation, loadin
       </Paper>
 
       {/* Key Metrics + Strategy Plan */}
-      <Grid container spacing={4} sx={{ mb: 4 }}>
-        <Grid item xs={12} md={7}>
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: '7fr 5fr' },
+          gap: 4,
+          mb: 4,
+        }}
+      >
+        <Box>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(auto-fit, minmax(260px, 1fr))' }, gap: 3 }}>
             {[
           {
@@ -2013,8 +2019,8 @@ function Dashboard({ data, totalEMI, onBack, onRecommend, recommendation, loadin
               </Card>
             ))}
           </Box>
-        </Grid>
-        <Grid item xs={12} md={5}>
+        </Box>
+        <Box>
           {strategyPlan ? (
             <Card
               elevation={0}
@@ -2068,8 +2074,8 @@ function Dashboard({ data, totalEMI, onBack, onRecommend, recommendation, loadin
               </Box>
             </Card>
           )}
-        </Grid>
-      </Grid>
+        </Box>
+      </Box>
 
       {/* Investment Breakdown */}
       <Card elevation={0} sx={{ p: 4, borderRadius: 3, border: '1px solid var(--border-light)', mb: 4 }}>
