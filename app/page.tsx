@@ -36,7 +36,8 @@ import {
   ToggleButtonGroup,
   ThemeProvider,
   createTheme,
-  CssBaseline
+  CssBaseline,
+  InputAdornment
 } from '@mui/material';
 import { 
   SelectChangeEvent 
@@ -141,6 +142,8 @@ type Step = 0 | 1 | 2 | 3 | 4 | 5;
 
 type ViewMode = "form" | "dashboard" | "riskQuiz";
 
+type CountryCode = "IN" | "US" | "UK" | "EU";
+
 interface QuizPersonaSummary {
   ageGroup: string;
   knowledge: KnowledgeLevel;
@@ -154,7 +157,7 @@ interface QuizResult {
 }
 
 // Pie chart helper
-function PieChart({ data }: { data: { label: string; value: number; color: string }[] }) {
+function PieChart({ data, formatCurrency }: { data: { label: string; value: number; color: string }[]; formatCurrency: (n: number) => string }) {
   const total = data.reduce((sum, d) => sum + d.value, 0);
   let cumulative = 0;
   const radius = 48;
@@ -194,7 +197,7 @@ function PieChart({ data }: { data: { label: string; value: number; color: strin
           const pathData = `M${cx},${cy} L${x1},${y1} A${radius},${radius} 0 ${largeArc} 1 ${x2},${y2} Z`;
           const percent = total > 0 ? ((slice.value / total) * 100).toFixed(1) + '%' : '0%';
           const isHovered = hovered === i;
-          const value = `₹${slice.value.toLocaleString()}`;
+          const value = formatCurrency(slice.value);
           cumulative += slice.value;
           return (
             <path
@@ -258,6 +261,7 @@ const theme = createTheme({
 
 export default function Home() {
   const [view, setView] = useState<ViewMode>("form");
+  const [country, setCountry] = useState<CountryCode>("IN");
   const [step, setStep] = useState<Step>(0);
   const [form, setForm] = useState<FormData>(defaultForm);
   const [mfName, setMfName] = useState("");
@@ -286,6 +290,29 @@ export default function Home() {
   // In Home component, add state and handlers for SIPs:
   const [sipMfName, setSipMfName] = useState('');
   const [sipAmount, setSipAmount] = useState<number | ''>('');
+
+  const currencyMeta: Record<CountryCode, { label: string; symbol: string; locale: string; currency: string }> = {
+    IN: { label: "India (INR)", symbol: "₹", locale: "en-IN", currency: "INR" },
+    US: { label: "United States (USD)", symbol: "$", locale: "en-US", currency: "USD" },
+    UK: { label: "United Kingdom (GBP)", symbol: "£", locale: "en-GB", currency: "GBP" },
+    EU: { label: "Eurozone (EUR)", symbol: "€", locale: "de-DE", currency: "EUR" },
+  };
+
+  const currentCurrency = currencyMeta[country];
+
+  const formatCurrency = (amount: number): string => {
+    const safeAmount = isNaN(amount) ? 0 : amount;
+    try {
+      return new Intl.NumberFormat(currentCurrency.locale, {
+        style: "currency",
+        currency: currentCurrency.currency,
+        maximumFractionDigits: 0,
+      }).format(safeAmount);
+    } catch {
+      // Fallback if Intl or locale fails
+      return `${currentCurrency.symbol}${safeAmount.toLocaleString()}`;
+    }
+  };
   
   const addSip = () => {
     if (!sipMfName || !sipAmount || Number(sipAmount) <= 0) return;
@@ -546,44 +573,44 @@ export default function Home() {
 
   // Replace mfList and fetching logic with a static array:
   const staticMfList = [
-    { name: 'DSP Large Cap Fund', category: 'Equity', type: 'Large Cap', oneY: '9.1%', fiveY: '20.26%', aum: '₹6,036 Cr', rating: 5 },
-    { name: 'Kotak Bluechip Fund', category: 'Equity', type: 'Large Cap', oneY: '7.6%', fiveY: '20.22%', aum: '₹10,138 Cr', rating: 4 },
-    { name: 'Aditya Birla SL Large Cap Fund', category: 'Equity', type: 'Large Cap', oneY: '7.5%', fiveY: '19.3%', aum: '₹29,858 Cr', rating: 4 },
-    { name: 'ICICI Pru Large Cap Fund', category: 'Equity', type: 'Large Cap', oneY: '6.8%', fiveY: '23.7%', aum: '₹69,762 Cr', rating: 5 },
-    { name: 'Invesco India Largecap Fund', category: 'Equity', type: 'Large Cap', oneY: '6.8%', fiveY: '21.05%', aum: '₹1,559 Cr', rating: 4 },
-    { name: 'SBI Bluechip Fund', category: 'Equity', type: 'Large Cap', oneY: '6.5%', fiveY: '18.0%', aum: '₹52,251 Cr', rating: 4 },
-    { name: 'Canara Robeco Large Cap Fund', category: 'Equity', type: 'Large Cap', oneY: '6.11%', fiveY: '17.5%', aum: '₹16,617 Cr', rating: 4 },
-    { name: 'Nippon India Large Cap Fund', category: 'Equity', type: 'Large Cap', oneY: '5.3%', fiveY: '22.32%', aum: '₹41,750 Cr', rating: 5 },
-    { name: 'Axis Large Cap Fund', category: 'Equity', type: 'Large Cap', oneY: '5.05%', fiveY: '17.04%', aum: '₹33,413 Cr', rating: 3 },
-    { name: 'HDFC Large Cap Fund', category: 'Equity', type: 'Large Cap', oneY: '3.0%', fiveY: '19.94%', aum: '₹37,715 Cr', rating: 5 },
-    { name: 'Invesco India Midcap Fund', category: 'Equity', type: 'Mid Cap', oneY: '16.60%', fiveY: '32.07%', aum: '₹6,641 Cr', rating: 5 },
-    { name: 'Edelweiss Mid Cap Fund', category: 'Equity', type: 'Mid Cap', oneY: '9.6%', fiveY: '34.81%', aum: '₹10,028 Cr', rating: 5 },
-    { name: 'HDFC Mid Cap Fund', category: 'Equity', type: 'Mid Cap', oneY: '8.4%', fiveY: '32.0%', aum: '₹79,717 Cr', rating: 5 },
-    { name: 'Motilal Oswal Midcap Fund', category: 'Equity', type: 'Mid Cap', oneY: '8.1%', fiveY: '37.46%', aum: '₹30,401 Cr', rating: 5 },
-    { name: 'Kotak Midcap Fund', category: 'Equity', type: 'Mid Cap', oneY: '6.37%', fiveY: '31.69%', aum: '₹53,464 Cr', rating: 4 },
-    { name: 'Nippon India Growth Mid Cap Fund', category: 'Equity', type: 'Mid Cap', oneY: '6.39%', fiveY: '30.0%', aum: '₹36,836 Cr', rating: 4 },
-    { name: 'ICICI Pru Midcap Fund', category: 'Equity', type: 'Mid Cap', oneY: '5.00%', fiveY: '31.01%', aum: '₹6,421 Cr', rating: 3 },
-    { name: 'Mirae Asset Midcap Fund', category: 'Equity', type: 'Mid Cap', oneY: '4.52%', fiveY: '30.39%', aum: '₹16,337 Cr', rating: 3 },
-    { name: 'Union Midcap Fund', category: 'Equity', type: 'Mid Cap', oneY: '4.45%', fiveY: '30.89%', aum: '₹1,440 Cr', rating: 4 },
-    { name: 'Axis Midcap Fund', category: 'Equity', type: 'Mid Cap', oneY: '4.05%', fiveY: '29.0%', aum: '₹30,501 Cr', rating: 3 },
-    { name: 'Bandhan Small Cap Fund', category: 'Equity', type: 'Small Cap', oneY: '11.9%', fiveY: '38.06%', aum: '₹11,744 Cr', rating: 5 },
-    { name: 'Invesco India Smallcap Fund', category: 'Equity', type: 'Small Cap', oneY: '10.7%', fiveY: '35.23%', aum: '₹7,435 Cr', rating: 5 },
-    { name: 'Axis Small Cap Fund', category: 'Equity', type: 'Small Cap', oneY: '7.13%', fiveY: '32.0%', aum: '₹25,062 Cr', rating: 4 },
-    { name: 'DSP Small Cap Fund', category: 'Equity', type: 'Small Cap', oneY: '6.64%', fiveY: '28.0%', aum: '₹16,304 Cr', rating: 3 },
-    { name: 'Edelweiss Small Cap Fund', category: 'Equity', type: 'Small Cap', oneY: '5.65%', fiveY: '35.94%', aum: '₹4,580 Cr', rating: 4 },
-    { name: 'Kotak Small Cap Fund', category: 'Equity', type: 'Small Cap', oneY: '5.0%', fiveY: '34.04%', aum: '₹17,329 Cr', rating: 3 },
-    { name: 'HDFC Small Cap Fund', category: 'Equity', type: 'Small Cap', oneY: '4.35%', fiveY: '35.09%', aum: '₹34,032 Cr', rating: 4 },
-    { name: 'ITI Small Cap Fund', category: 'Equity', type: 'Small Cap', oneY: '3.38%', fiveY: '30.46%', aum: '₹2,504 Cr', rating: 3 },
-    { name: 'Tata Small Cap Fund', category: 'Equity', type: 'Small Cap', oneY: '2.49%', fiveY: '35.70%', aum: '₹11,164 Cr', rating: 4 },
-    { name: 'BOI Small Cap Fund', category: 'Equity', type: 'Small Cap', oneY: '0.77%', fiveY: '36.17%', aum: '₹1,819 Cr', rating: 4 },
-    { name: 'Motilal Oswal Flexi Cap Fund', category: 'Equity', type: 'Flexi Cap', oneY: '16.98%', fiveY: '21.14%', aum: '₹13,894 Cr', rating: 5 },
-    { name: 'Parag Parikh Flexi Cap Fund', category: 'Equity', type: 'Flexi Cap', oneY: '12.0%', fiveY: '25.7%', aum: '₹35,000 Cr', rating: 5 },
-    { name: 'HDFC Flexi Cap Fund', category: 'Equity', type: 'Flexi Cap', oneY: '9.75%', fiveY: '30.13%', aum: '₹75,785 Cr', rating: 5 },
-    { name: 'Franklin India Flexi Cap Fund', category: 'Equity', type: 'Flexi Cap', oneY: '5.14%', fiveY: '22.0%', aum: '₹18,679 Cr', rating: 4 },
-    { name: 'Quant Flexi Cap Fund', category: 'Equity', type: 'Flexi Cap', oneY: '-7.23%', fiveY: '25.0%', aum: '₹7,326 Cr', rating: 5 },
-    { name: 'SBI Healthcare Opportunities Fund', category: 'Equity', type: 'Sectoral/Thematic', oneY: '20.7%', fiveY: '25.0%', aum: '₹3,689 Cr', rating: 5 },
-    { name: 'Sundaram Services Fund', category: 'Equity', type: 'Sectoral/Thematic', oneY: '16.89%', fiveY: '28.14%', aum: '₹4,161 Cr', rating: 4 },
-    { name: 'Sundaram Financial Services Opp. Fund', category: 'Equity', type: 'Sectoral/Thematic', oneY: '8.20%', fiveY: '25.05%', aum: '₹1,548 Cr', rating: 4 },
+    { name: 'DSP Large Cap Fund', category: 'Equity', type: 'Large Cap', oneY: '9.1%', fiveY: '20.26%', aum: '6,036 Cr', rating: 5 },
+    { name: 'Kotak Bluechip Fund', category: 'Equity', type: 'Large Cap', oneY: '7.6%', fiveY: '20.22%', aum: '10,138 Cr', rating: 4 },
+    { name: 'Aditya Birla SL Large Cap Fund', category: 'Equity', type: 'Large Cap', oneY: '7.5%', fiveY: '19.3%', aum: '29,858 Cr', rating: 4 },
+    { name: 'ICICI Pru Large Cap Fund', category: 'Equity', type: 'Large Cap', oneY: '6.8%', fiveY: '23.7%', aum: '69,762 Cr', rating: 5 },
+    { name: 'Invesco India Largecap Fund', category: 'Equity', type: 'Large Cap', oneY: '6.8%', fiveY: '21.05%', aum: '1,559 Cr', rating: 4 },
+    { name: 'SBI Bluechip Fund', category: 'Equity', type: 'Large Cap', oneY: '6.5%', fiveY: '18.0%', aum: '52,251 Cr', rating: 4 },
+    { name: 'Canara Robeco Large Cap Fund', category: 'Equity', type: 'Large Cap', oneY: '6.11%', fiveY: '17.5%', aum: '16,617 Cr', rating: 4 },
+    { name: 'Nippon India Large Cap Fund', category: 'Equity', type: 'Large Cap', oneY: '5.3%', fiveY: '22.32%', aum: '41,750 Cr', rating: 5 },
+    { name: 'Axis Large Cap Fund', category: 'Equity', type: 'Large Cap', oneY: '5.05%', fiveY: '17.04%', aum: '33,413 Cr', rating: 3 },
+    { name: 'HDFC Large Cap Fund', category: 'Equity', type: 'Large Cap', oneY: '3.0%', fiveY: '19.94%', aum: '37,715 Cr', rating: 5 },
+    { name: 'Invesco India Midcap Fund', category: 'Equity', type: 'Mid Cap', oneY: '16.60%', fiveY: '32.07%', aum: '6,641 Cr', rating: 5 },
+    { name: 'Edelweiss Mid Cap Fund', category: 'Equity', type: 'Mid Cap', oneY: '9.6%', fiveY: '34.81%', aum: '10,028 Cr', rating: 5 },
+    { name: 'HDFC Mid Cap Fund', category: 'Equity', type: 'Mid Cap', oneY: '8.4%', fiveY: '32.0%', aum: '79,717 Cr', rating: 5 },
+    { name: 'Motilal Oswal Midcap Fund', category: 'Equity', type: 'Mid Cap', oneY: '8.1%', fiveY: '37.46%', aum: '30,401 Cr', rating: 5 },
+    { name: 'Kotak Midcap Fund', category: 'Equity', type: 'Mid Cap', oneY: '6.37%', fiveY: '31.69%', aum: '53,464 Cr', rating: 4 },
+    { name: 'Nippon India Growth Mid Cap Fund', category: 'Equity', type: 'Mid Cap', oneY: '6.39%', fiveY: '30.0%', aum: '36,836 Cr', rating: 4 },
+    { name: 'ICICI Pru Midcap Fund', category: 'Equity', type: 'Mid Cap', oneY: '5.00%', fiveY: '31.01%', aum: '6,421 Cr', rating: 3 },
+    { name: 'Mirae Asset Midcap Fund', category: 'Equity', type: 'Mid Cap', oneY: '4.52%', fiveY: '30.39%', aum: '16,337 Cr', rating: 3 },
+    { name: 'Union Midcap Fund', category: 'Equity', type: 'Mid Cap', oneY: '4.45%', fiveY: '30.89%', aum: '1,440 Cr', rating: 4 },
+    { name: 'Axis Midcap Fund', category: 'Equity', type: 'Mid Cap', oneY: '4.05%', fiveY: '29.0%', aum: '30,501 Cr', rating: 3 },
+    { name: 'Bandhan Small Cap Fund', category: 'Equity', type: 'Small Cap', oneY: '11.9%', fiveY: '38.06%', aum: '11,744 Cr', rating: 5 },
+    { name: 'Invesco India Smallcap Fund', category: 'Equity', type: 'Small Cap', oneY: '10.7%', fiveY: '35.23%', aum: '7,435 Cr', rating: 5 },
+    { name: 'Axis Small Cap Fund', category: 'Equity', type: 'Small Cap', oneY: '7.13%', fiveY: '32.0%', aum: '25,062 Cr', rating: 4 },
+    { name: 'DSP Small Cap Fund', category: 'Equity', type: 'Small Cap', oneY: '6.64%', fiveY: '28.0%', aum: '16,304 Cr', rating: 3 },
+    { name: 'Edelweiss Small Cap Fund', category: 'Equity', type: 'Small Cap', oneY: '5.65%', fiveY: '35.94%', aum: '4,580 Cr', rating: 4 },
+    { name: 'Kotak Small Cap Fund', category: 'Equity', type: 'Small Cap', oneY: '5.0%', fiveY: '34.04%', aum: '17,329 Cr', rating: 3 },
+    { name: 'HDFC Small Cap Fund', category: 'Equity', type: 'Small Cap', oneY: '4.35%', fiveY: '35.09%', aum: '34,032 Cr', rating: 4 },
+    { name: 'ITI Small Cap Fund', category: 'Equity', type: 'Small Cap', oneY: '3.38%', fiveY: '30.46%', aum: '2,504 Cr', rating: 3 },
+    { name: 'Tata Small Cap Fund', category: 'Equity', type: 'Small Cap', oneY: '2.49%', fiveY: '35.70%', aum: '11,164 Cr', rating: 4 },
+    { name: 'BOI Small Cap Fund', category: 'Equity', type: 'Small Cap', oneY: '0.77%', fiveY: '36.17%', aum: '1,819 Cr', rating: 4 },
+    { name: 'Motilal Oswal Flexi Cap Fund', category: 'Equity', type: 'Flexi Cap', oneY: '16.98%', fiveY: '21.14%', aum: '13,894 Cr', rating: 5 },
+    { name: 'Parag Parikh Flexi Cap Fund', category: 'Equity', type: 'Flexi Cap', oneY: '12.0%', fiveY: '25.7%', aum: '35,000 Cr', rating: 5 },
+    { name: 'HDFC Flexi Cap Fund', category: 'Equity', type: 'Flexi Cap', oneY: '9.75%', fiveY: '30.13%', aum: '75,785 Cr', rating: 5 },
+    { name: 'Franklin India Flexi Cap Fund', category: 'Equity', type: 'Flexi Cap', oneY: '5.14%', fiveY: '22.0%', aum: '18,679 Cr', rating: 4 },
+    { name: 'Quant Flexi Cap Fund', category: 'Equity', type: 'Flexi Cap', oneY: '-7.23%', fiveY: '25.0%', aum: '7,326 Cr', rating: 5 },
+    { name: 'SBI Healthcare Opportunities Fund', category: 'Equity', type: 'Sectoral/Thematic', oneY: '20.7%', fiveY: '25.0%', aum: '3,689 Cr', rating: 5 },
+    { name: 'Sundaram Services Fund', category: 'Equity', type: 'Sectoral/Thematic', oneY: '16.89%', fiveY: '28.14%', aum: '4,161 Cr', rating: 4 },
+    { name: 'Sundaram Financial Services Opp. Fund', category: 'Equity', type: 'Sectoral/Thematic', oneY: '8.20%', fiveY: '25.05%', aum: '1,548 Cr', rating: 4 },
     { name: 'Franklin India Technology Fund', category: 'Equity', type: 'Sectoral/Thematic', oneY: '5.02%', fiveY: '25.04%', aum: '₹1,862 Cr', rating: 4 },
     { name: 'ICICI Pru Infrastructure Fund', category: 'Equity', type: 'Sectoral/Thematic', oneY: '4.1%', fiveY: '38.05%', aum: '₹7,920 Cr', rating: 5 },
     // ELSS (Tax Saving) Funds
@@ -764,7 +791,7 @@ export default function Home() {
         sx={{ 
           background: 'linear-gradient(135deg, var(--primary), var(--primary-light))',
           color: 'white',
-          py: 3,
+          py: { xs: 2, sm: 3 },
           mb: 4,
           borderRadius: 0,
           px: { xs: 2, sm: 4, md: 8 },
@@ -775,7 +802,7 @@ export default function Home() {
           boxSizing: 'border-box',
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: 1600, mx: 'auto', width: '100%' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: 1600, mx: 'auto', width: '100%', flexWrap: 'wrap', rowGap: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 2 } }}>
             <img
               src="/logo.png"
@@ -821,17 +848,34 @@ export default function Home() {
                 My Dashboard
               </Button>
             )}
-            <Chip 
-              label="India" 
-              icon={<AccountBalance />} 
-              sx={{ 
-                bgcolor: 'rgba(255,255,255,0.2)', 
+            <FormControl size="small" sx={{ minWidth: 150 }}>
+              <Select
+                value={country}
+                onChange={(e) => setCountry(e.target.value as CountryCode)}
+                sx={{
+                  bgcolor: 'rgba(0,0,0,0.15)',
+                  color: 'white',
+                  borderRadius: 999,
+                  '& .MuiSelect-icon': { color: 'white' },
+                  '& .MuiOutlinedInput-notchedOutline': { border: 'none' },
+                }}
+              >
+                {Object.entries(currencyMeta).map(([code, meta]) => (
+                  <MenuItem key={code} value={code}>
+                    {meta.symbol} {meta.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <Chip
+              label="v1.0"
+              size="small"
+              sx={{
+                bgcolor: 'rgba(0,0,0,0.25)',
                 color: 'white',
-                '& .MuiChip-icon': { color: 'white' },
-                fontSize: { xs: '0.8rem', sm: '1rem' },
-                px: { xs: 1, sm: 2 },
-                height: { xs: 32, sm: 40 },
-              }} 
+                fontSize: 12,
+                fontWeight: 500,
+              }}
             />
           </Box>
         </Box>
@@ -847,6 +891,7 @@ export default function Home() {
             recommendation={recommendation}
             loadingRecommendation={loadingRecommendation}
             quizResult={quizData}
+            formatCurrency={formatCurrency}
           />
         )}
         {view === "riskQuiz" && dashboardData && (
@@ -943,7 +988,11 @@ export default function Home() {
                         value={form.income.inhandIncome}
                         onChange={handleIncome}
                         InputProps={{
-                          startAdornment: <span style={{ color: 'gray', marginRight: 4 }}>₹</span>,
+                          startAdornment: (
+                            <InputAdornment position="start" sx={{ color: 'text.secondary' }}>
+                              {currentCurrency.symbol}
+                            </InputAdornment>
+                          ),
                         }}
                         required
                         error={!!incomeError}
@@ -960,7 +1009,11 @@ export default function Home() {
                         value={form.income.otherIncome}
                         onChange={handleIncome}
                         InputProps={{
-                          startAdornment: <span style={{ color: 'gray', marginRight: 4 }}>₹</span>,
+                          startAdornment: (
+                            <InputAdornment position="start" sx={{ color: 'text.secondary' }}>
+                              {currentCurrency.symbol}
+                            </InputAdornment>
+                          ),
                         }}
                       />
                     </Box>
@@ -1510,7 +1563,7 @@ export default function Home() {
 }
 
 // Dashboard component
-function Dashboard({ data, totalEMI, onBack, onRecommend, recommendation, loadingRecommendation, quizResult }: {
+function Dashboard({ data, totalEMI, onBack, onRecommend, recommendation, loadingRecommendation, quizResult, formatCurrency }: {
   data: FormData;
   totalEMI: number;
   onBack: () => void;
@@ -1524,6 +1577,7 @@ function Dashboard({ data, totalEMI, onBack, onRecommend, recommendation, loadin
   } | null;
   loadingRecommendation?: boolean;
   quizResult?: QuizResult | null;
+  formatCurrency: (n: number) => string;
 }) {
   const totalIncome = Number(data.income.inhandIncome) + Number(data.income.otherIncome);
   const totalInvestments = Number(data.investments.gold) + Number(data.investments.realEstate) + 
@@ -1787,42 +1841,42 @@ function Dashboard({ data, totalEMI, onBack, onRecommend, recommendation, loadin
           {
             icon: <AttachMoney />,
             label: 'Monthly Income',
-            value: `₹${totalIncome.toLocaleString()}`,
+            value: formatCurrency(totalIncome),
             color: '#388e3c',
-            sub: `Primary: ₹${Number(data.income.inhandIncome).toLocaleString()} | Other: ₹${Number(data.income.otherIncome).toLocaleString()}`
+            sub: `Primary: ${formatCurrency(Number(data.income.inhandIncome) || 0)} | Other: ${formatCurrency(Number(data.income.otherIncome) || 0)}`
           },
           {
             icon: <Assessment />,
             label: 'Monthly Expenses',
-            value: `₹${totalMonthlyExpenses.toLocaleString()}`,
+            value: formatCurrency(totalMonthlyExpenses),
             color: '#f57c00',
-            sub: `Base: ₹${Number(data.expenses.monthlyExpenses).toLocaleString()} | EMI: ₹${totalEMI.toLocaleString()}`
+            sub: `Base: ${formatCurrency(Number(data.expenses.monthlyExpenses) || 0)} | EMI: ${formatCurrency(totalEMI)}`
           },
           {
             icon: <TrendingUp />,
             label: 'Monthly Savings',
-            value: `₹${monthlySavings.toLocaleString()}`,
+            value: formatCurrency(monthlySavings),
             color: '#1976d2',
             sub: `Savings Rate: ${savingsRate.toFixed(1)}%`
           },
           {
             icon: <AccountBalance />,
             label: 'Total Investments',
-            value: `₹${totalInvestments.toLocaleString()}`,
+            value: formatCurrency(totalInvestments),
             color: '#7b1fa2',
             sub: `${data.investments.mutualFunds.length} Mutual Funds`
           },
           {
             icon: <Calculate />,
             label: 'Total Debt',
-            value: `₹${totalDebt.toLocaleString()}`,
+            value: formatCurrency(totalDebt),
             color: '#d32f2f',
             sub: ''
           },
           {
             icon: <AccountBalance />,
             label: 'True Net Worth',
-            value: `₹${trueNetWorth.toLocaleString()}`,
+            value: formatCurrency(trueNetWorth),
             color: '#0288d1',
             sub: ''
           }
@@ -1931,20 +1985,20 @@ function Dashboard({ data, totalEMI, onBack, onRecommend, recommendation, loadin
           {Number(data.investments.gold) > 0 && (
             <Box sx={{ p: 2, bgcolor: 'var(--background-light)', borderRadius: 2 }}>
               <Typography variant="subtitle2" color="text.secondary">Gold</Typography>
-              <Typography variant="h6" sx={{ fontWeight: 600 }}>₹{Number(data.investments.gold).toLocaleString()}</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>{formatCurrency(Number(data.investments.gold) || 0)}</Typography>
             </Box>
           )}
           {Number(data.investments.realEstate) > 0 && (
             <Box sx={{ p: 2, bgcolor: 'var(--background-light)', borderRadius: 2 }}>
               <Typography variant="subtitle2" color="text.secondary">Real Estate</Typography>
-              <Typography variant="h6" sx={{ fontWeight: 600 }}>₹{Number(data.investments.realEstate).toLocaleString()}</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>{formatCurrency(Number(data.investments.realEstate) || 0)}</Typography>
             </Box>
           )}
           {data.investments.mutualFunds.length > 0 && (
             <Box sx={{ p: 2, bgcolor: 'var(--background-light)', borderRadius: 2 }}>
               <Typography variant="subtitle2" color="text.secondary">Mutual Funds</Typography>
               <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                ₹{data.investments.mutualFunds.reduce((sum, mf) => sum + mf.amount, 0).toLocaleString()}
+                {formatCurrency(data.investments.mutualFunds.reduce((sum, mf) => sum + mf.amount, 0))}
               </Typography>
               <Typography variant="caption" color="text.secondary">
                 {data.investments.mutualFunds.length} funds
@@ -1954,7 +2008,7 @@ function Dashboard({ data, totalEMI, onBack, onRecommend, recommendation, loadin
           {Number(data.investments.fd) > 0 && (
             <Box sx={{ p: 2, bgcolor: 'var(--background-light)', borderRadius: 2 }}>
               <Typography variant="subtitle2" color="text.secondary">Fixed Deposits</Typography>
-              <Typography variant="h6" sx={{ fontWeight: 600 }}>₹{Number(data.investments.fd).toLocaleString()}</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>{formatCurrency(Number(data.investments.fd) || 0)}</Typography>
             </Box>
           )}
         </Box>
@@ -1967,7 +2021,7 @@ function Dashboard({ data, totalEMI, onBack, onRecommend, recommendation, loadin
                 <Box key={idx} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, bgcolor: 'var(--background-light)', borderRadius: 2 }}>
                   <Typography variant="body2">{sip.name}</Typography>
                   <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                    ₹{sip.amount.toLocaleString()}/month
+                    {formatCurrency(sip.amount)}/month
                   </Typography>
                 </Box>
               ))}
@@ -1990,11 +2044,11 @@ function Dashboard({ data, totalEMI, onBack, onRecommend, recommendation, loadin
                   <Box>
                     <Typography variant="body1" sx={{ fontWeight: 500 }}>{loan.type || 'Loan'}</Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Principal: ₹{loan.principal} | Rate: {loan.interest}% | Tenure: {loan.tenureValue} {loan.tenureType}
+                      Principal: {formatCurrency(parseFloat(loan.principal) || 0)} | Rate: {loan.interest}% | Tenure: {loan.tenureValue} {loan.tenureType}
                     </Typography>
                   </Box>
                   <Typography variant="h6" sx={{ fontWeight: 700, color: 'var(--error)' }}>
-                    EMI: ₹{loan.emi.toLocaleString()}/month
+                    EMI: {formatCurrency(loan.emi)}/month
                   </Typography>
                 </Box>
               </Card>
@@ -2011,12 +2065,14 @@ function Dashboard({ data, totalEMI, onBack, onRecommend, recommendation, loadin
             Investment Allocation
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
-            <PieChart data={pieGroups} />
+            <PieChart data={pieGroups} formatCurrency={formatCurrency} />
             <Box>
               {pieGroups.map((g, i) => (
                 <Box key={g.label} sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                   <Box sx={{ width: 16, height: 16, bgcolor: g.color, borderRadius: 2, mr: 1 }} />
-                  <Typography variant="body2">{g.label}: {((g.value / pieGroups.reduce((sum, g) => sum + g.value, 0)) * 100).toFixed(1)}% (₹{g.value.toLocaleString()})</Typography>
+                  <Typography variant="body2">
+                    {g.label}: {((g.value / pieGroups.reduce((sum, g2) => sum + g2.value, 0)) * 100).toFixed(1)}% ({formatCurrency(g.value)})
+                  </Typography>
                 </Box>
               ))}
             </Box>
