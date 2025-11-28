@@ -1726,7 +1726,7 @@ function Dashboard({ data, totalEMI, onBack, onRecommend, recommendation, loadin
     };
   };
 
-  const strategyPlan = buildStrategyPlan();
+  const strategyPlan = quizResult ? buildStrategyPlan() : null;
 
   return (
     <Box sx={{ maxWidth: 1200, mx: 'auto', p: { xs: 1, sm: 3 } }}>
@@ -1872,34 +1872,53 @@ function Dashboard({ data, totalEMI, onBack, onRecommend, recommendation, loadin
         ))}
       </Box>
 
-      {/* Strategy Plan */}
-      <Card elevation={0} sx={{ p: 4, borderRadius: 3, border: '1px solid var(--border-light)', mb: 4 }}>
-        <Typography variant="h5" sx={{ fontWeight: 600, mb: 1 }}>
-          {strategyPlan.name}
-        </Typography>
-        <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-          {strategyPlan.headline}
-        </Typography>
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(auto-fit, minmax(260px, 1fr))' }, gap: 3 }}>
-          {strategyPlan.phases.map((phase, idx) => (
-            <Box key={idx} sx={{ p: 2.5, bgcolor: 'var(--background-light)', borderRadius: 2, border: '1px solid var(--border-light)' }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
-                {phase.title}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-                {phase.summary}
-              </Typography>
-              <ul style={{ paddingLeft: '1.2rem', margin: 0 }}>
-                {phase.bullets.map((b, i) => (
-                  <li key={i} style={{ marginBottom: '0.35rem', fontSize: '0.9rem' }}>
-                    {b}
-                  </li>
-                ))}
-              </ul>
-            </Box>
-          ))}
-        </Box>
-      </Card>
+      {/* Strategy Plan (only after risk quiz / persona is available) */}
+      {strategyPlan ? (
+        <Card elevation={0} sx={{ p: 4, borderRadius: 3, border: '1px solid var(--border-light)', mb: 4 }}>
+          <Typography variant="h5" sx={{ fontWeight: 600, mb: 1 }}>
+            {strategyPlan.name}
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            Persona: {persona.code} – {persona.label}
+          </Typography>
+          <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+            {strategyPlan.headline}
+          </Typography>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(auto-fit, minmax(260px, 1fr))' }, gap: 3 }}>
+            {strategyPlan.phases.map((phase, idx) => (
+              <Box key={idx} sx={{ p: 2.5, bgcolor: 'var(--background-light)', borderRadius: 2, border: '1px solid var(--border-light)' }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+                  {phase.title}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                  {phase.summary}
+                </Typography>
+                <ul style={{ paddingLeft: '1.2rem', margin: 0 }}>
+                  {phase.bullets.map((b, i) => (
+                    <li key={i} style={{ marginBottom: '0.35rem', fontSize: '0.9rem' }}>
+                      {b}
+                    </li>
+                  ))}
+                </ul>
+              </Box>
+            ))}
+          </Box>
+        </Card>
+      ) : (
+        <Card elevation={0} sx={{ p: 4, borderRadius: 3, border: '1px solid var(--border-light)', mb: 4 }}>
+          <Typography variant="h5" sx={{ fontWeight: 600, mb: 1 }}>
+            Complete Your Risk Profile
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Take the Risk Profile Assessment to generate your persona and a personalised three‑phase strategy plan.
+          </Typography>
+          <Box sx={{ mt: 3 }}>
+            <Button variant="contained" startIcon={<Security />} onClick={onRecommend}>
+              Start Risk Profile Assessment
+            </Button>
+          </Box>
+        </Card>
+      )}
 
       {/* Investment Breakdown */}
       <Card elevation={0} sx={{ p: 4, borderRadius: 3, border: '1px solid var(--border-light)', mb: 4 }}>

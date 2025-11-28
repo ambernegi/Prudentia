@@ -50,6 +50,30 @@ Where `PersonaInput` includes:
 
 The dashboard combines **quiz‑derived behaviour** and **dashboard‑derived DTI/income/loans** to produce a final persona.
 
+### Persona Dimensions Table
+
+The persona used by `getUserPersona` is determined by five dimensions. The table below shows how each dimension is populated:
+
+| **Dimension** | **Type / Values** | **Source** | **Meaning** |
+| --- | --- | --- | --- |
+| `ageGroup` | String; e.g. `18–25 years (Early Career)`, `26–35 years (Emerging Accumulator)`, `36–50 years (Established Professional)`, `51–65 years (Pre-Retirement)`, `Over 65 years (Retiree or Late Stage)` | Risk quiz (Q1) | Captures life stage and typical financial context. |
+| `dti` | `'<36%' \| '36–43%' \| '43–50%' \| '≥50%'` | Dashboard calculation (total debt ÷ annual income) | Measures leverage and repayment pressure. Lower is healthier. |
+| `knowledge` | `'Minimal' \| 'Moderate' \| 'Advanced'` | Risk quiz (self‑rated knowledge + products used) | Investor’s understanding of instruments and comfort managing them. |
+| `behaviour` | `'Cautious' \| 'Moderate' \| 'Aggressive'` | Risk quiz (goals, time horizon, volatility comfort) | How much risk the investor is willing to take to pursue returns. |
+| `reaction` | `'Sell' \| 'Hold' \| 'Buy More' \| 'Unsure' \| 'Sell/Unsure' \| 'Hold/Buy More'` | Risk quiz (20% drawdown reaction) | Emotional/behavioural response to drawdowns and volatility. |
+
+Internally, `getUserPersona` maps these dimensions into **age‑banded persona codes** (e.g. `A1`–`A12` for 18–25, `B1`–`B10` for 26–35, etc.), each with a label and description such as:
+
+| **Code (example)** | **Typical profile** | **High‑level description** |
+| --- | --- | --- |
+| `A1` | Young, low debt, conservative, just starting | “You are starting your financial journey with low debt and a conservative approach.” |
+| `B3` | 26–35, low DTI, moderate/advanced knowledge, aggressive | “Financially strong, confident investor.” |
+| `C1` | 36–50, stable income, moderate knowledge, prudent | “Stable earner with prudent risk management.” |
+| `D1` | 51–65, low DTI, conservative | “Conservative, solid finances, prepping for retirement.” |
+| `E1` | 65+, low/no debt, very risk‑averse | “Low or no debt, avoids risk, focuses on preserving capital.” |
+
+All other persona codes in `utils/persona.ts` follow the same pattern: **age band (A–E)** × **DTI band** × **knowledge** × **behaviour** × **reaction**, resulting in a concise label and narrative description that the dashboard can surface next to the strategy plan.
+
 ## Strategy Plan Generation
 
 Inside the `Dashboard` function in `app/page.tsx`, we take:
